@@ -17,6 +17,27 @@
       "env": {}
     }
   },
+  "skills": [
+    {
+      "name": "personal-project-knowledge",
+      "path": "skills/personal-project-knowledge",
+      "description": "Portable skill for routing memory, document, decision, and requirement-change tasks to this MCP."
+    }
+  ],
+  "resources": [
+    {
+      "uri": "guide://personal-project-knowledge/usage",
+      "description": "Default usage guide exposed by the MCP server."
+    },
+    {
+      "uri": "context://personal-project-knowledge/project/{project}",
+      "description": "Project context with full short memories and long memory indexes."
+    },
+    {
+      "uri": "memory://loaded/project/{project}",
+      "description": "Structured JSON of project short memories and long memory indexes."
+    }
+  ],
   "tools": [
     {
       "name": "get_usage_guide",

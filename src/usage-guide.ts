@@ -18,7 +18,7 @@ export const usageGuideMarkdown = `# Personal Project Knowledge MCP 使用指南
 
 ## 常用操作
 
-- 会话开始：调用 build_context，或读取 hook 自动注入的上下文。
+- 会话开始：优先使用 MCP instructions；需要项目知识时调用 build_context。
 - 查看自动载入内容：list_loaded_memory。
 - 写入记忆：write_memory，短记忆必须简短；长内容先写文档。
 - 搜索记忆：search_memory，必要时 get_memory。

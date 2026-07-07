@@ -1,7 +1,7 @@
 {
   "name": "personal-project-knowledge",
   "version": "0.1.0",
-  "description": "Personal local knowledge and memory MCP for preferences, project rules, Markdown docs, decisions, and requirement changes.",
+  "description": "Codex adapter for the portable Personal Project Knowledge MCP plugin and skill.",
   "author": {
     "name": "Personal"
   },
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Personal Project Knowledge",
     "shortDescription": "Local memory and Markdown knowledge base.",
-    "longDescription": "Adds a local personal-project-knowledge MCP plus a Codex skill for managing auto-loaded memories, indexed Markdown docs, decisions, requirement changes, preferences, and project rules.",
+    "longDescription": "Installs the portable personal-project-knowledge MCP and skill into Codex. The shared skill manages auto-loaded memories, indexed Markdown docs, decisions, requirement changes, preferences, and project rules.",
     "developerName": "Personal",
     "category": "Productivity",
     "capabilities": ["mcp", "skills"],

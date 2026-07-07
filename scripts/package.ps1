@@ -49,6 +49,8 @@ try {
     "public",
     "docs",
     "scripts",
+    "skills",
+    "plugin",
     "codex-plugin",
     "manifest.json",
     "README.md",
@@ -62,14 +64,6 @@ try {
       Copy-Item -LiteralPath $src -Destination $Stage -Recurse -Force
     }
   }
-
-  $InstallScript = @'
-Write-Host "Installing production dependencies..."
-npm install --omit=dev
-Write-Host "Done. Start MCP server with: node dist/index.js"
-Write-Host "Start Web UI with: node dist/web.js"
-'@
-  Set-Content -Path (Join-Path $Stage "install.ps1") -Value $InstallScript -Encoding UTF8
 
   Write-Host "[6/6] Creating zip..."
   Compress-Archive -LiteralPath $Stage -DestinationPath $ZipPath -Force

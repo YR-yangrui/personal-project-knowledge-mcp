@@ -36,7 +36,10 @@
 | 统计/导入 | `src/stats.ts` | 高频统计、候选生成、Markdown 目录导入 |
 | MCP 服务 | `src/index.ts` | stdio MCP tools/resources |
 | Web 服务 | `src/web.ts` | 本地 Web UI API |
-| Hook 脚本 | `src/scripts/hook-*.ts` | Codex 会话文件流辅助 |
+| 通用 Skill | `skills/personal-project-knowledge/` | 可移植客户端路由指南 |
+| 通用 Plugin | `plugin/personal-project-knowledge/` | 可移植插件清单 |
+| Codex Adapter | `codex-plugin/personal-project-knowledge/` | Codex 专用封装，使用通用 skill |
+| 会话文件流脚本 | `src/scripts/hook-*.ts` | 手动生成上下文、候选提取与候选提交 |
 
 ---
 
@@ -67,4 +70,3 @@ KnowledgeRepository
 ```powershell
 $env:PPKM_DATA_ROOT='D:\AIKnowledge'
 ```
-

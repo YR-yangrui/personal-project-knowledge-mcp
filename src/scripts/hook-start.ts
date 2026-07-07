@@ -25,5 +25,5 @@ console.log(JSON.stringify({
   session_dir: session.session_dir,
   context_path: contextPath,
   context_json_path: contextJsonPath,
-  instruction: `把 ${contextPath} 的内容粘贴到 Codex 会话开头，或作为你的会话前置上下文。`
+  instruction: `把 ${contextPath} 的内容注入 AI 会话开头，或作为 MCP 客户端的会话前置上下文。`
 }, null, 2));

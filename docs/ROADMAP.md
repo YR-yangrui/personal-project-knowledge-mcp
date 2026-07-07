@@ -7,7 +7,7 @@
 - Markdown 真源落盘。
 - 短记忆 / 长索引 / 文档三层模型。
 - 候选提取与提交。
-- Codex hook 文件流。
+- 通用 skill/plugin 与会话文件流。
 - Web UI。
 - 高频统计与候选。
 - Markdown 目录导入。
@@ -22,4 +22,3 @@
 - 增加本地 embedding 语义搜索。
 - 增加导出 zip。
 - 增加 MCP client 配置生成器。
-

@@ -1,0 +1,58 @@
+{
+  "manifest_version": "0.3",
+  "name": "Personal Project Knowledge MCP",
+  "id": "personal-project-knowledge",
+  "version": "0.1.0",
+  "description": "Portable MCP plugin for personal memory, Markdown knowledge base, decisions, requirement changes, preferences, and project rules.",
+  "author": {
+    "name": "Personal"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {}
+    }
+  },
+  "skills": [
+    {
+      "name": "personal-project-knowledge",
+      "path": "../../skills/personal-project-knowledge",
+      "description": "Portable assistant routing guide for using the personal-project-knowledge MCP."
+    }
+  ],
+  "resources": [
+    {
+      "uri": "guide://personal-project-knowledge/usage",
+      "description": "Default MCP usage guide."
+    },
+    {
+      "uri": "context://personal-project-knowledge/project/{project}",
+      "description": "Project memory context with short memories and long indexes."
+    }
+  ],
+  "tools": [
+    "get_usage_guide",
+    "build_context",
+    "list_loaded_memory",
+    "search_memory",
+    "get_memory",
+    "write_memory",
+    "update_memory",
+    "deprecate_memory",
+    "list_projects",
+    "search_docs",
+    "read_doc",
+    "write_doc",
+    "patch_doc",
+    "create_or_update_doc_index",
+    "promote_doc_to_long_memory",
+    "demote_memory_to_doc",
+    "extract_memory_candidates",
+    "commit_memory_candidates",
+    "record_session_artifacts",
+    "backup_now"
+  ]
+}

@@ -9,6 +9,19 @@ npm install
 npm run build
 ```
 
+Windows 一键通用安装：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
+```
+
+通用安装会：
+
+- 安装 npm 依赖。
+- 构建 TypeScript。
+- 初始化数据目录和 `config.yaml`。
+- 不写入任何特定客户端配置。
+
 ## 数据目录
 
 默认数据目录：
@@ -37,12 +50,33 @@ npm run build
 node dist/index.js
 ```
 
-## 安装到 Codex
+## 通用 MCP 使用
 
-一键安装/更新 Codex MCP 配置：
+任意支持 stdio MCP 的客户端都可以直接启动：
+
+```json
+{
+  "mcpServers": {
+    "personal-project-knowledge": {
+      "command": "node",
+      "args": ["E:/projects/personal-project-knowledge-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+通用产物：
+
+- `manifest.json`：包级 MCP plugin 清单。
+- `plugin/personal-project-knowledge/manifest.json`：可移植 plugin 描述。
+- `skills/personal-project-knowledge/SKILL.md`：可移植 skill，适用于支持 skill/指令包的 AI 客户端。
+
+## Codex 适配安装
+
+Codex 只是一个适配目标，不是主产物。一键安装/更新 Codex MCP 配置、plugin adapter 和 skill：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install.ps1
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1
 ```
 
 默认会写入：
@@ -60,19 +94,38 @@ args = ["E:/projects/personal-project-knowledge-mcp/dist/index.js"]
 startup_timeout_sec = 120
 ```
 
-安装脚本会自动备份原 Codex 配置，安装后需要重启 Codex。
+安装脚本会自动备份原 Codex 配置，安装后需要重启客户端。
 
-Codex/Claude 一类客户端可配置为 stdio MCP server：
+也可以用通用安装顺便安装 Codex adapter：
 
-```json
-{
-  "mcpServers": {
-    "personal-project-knowledge": {
-      "command": "node",
-      "args": ["C:/RequestFiles/personal-project-knowledge-mcp/dist/index.js"]
-    }
-  }
-}
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -InstallCodexAdapter
+```
+
+## 卸载
+
+只移除 Codex adapter、Codex MCP 配置、个人 plugin/skill，不删除数据：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/uninstall-codex.ps1
+```
+
+通用卸载入口默认保留数据和 Codex adapter：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1
+```
+
+通用卸载并移除 Codex adapter：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveCodexAdapter
+```
+
+删除记忆和文档数据需要显式确认参数，避免误删：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveData -Force
 ```
 
 ## 核心工具
@@ -98,7 +151,7 @@ Codex/Claude 一类客户端可配置为 stdio MCP server：
 - `Tools`：执行增删改查、导入、备份等动作。
 - `Resources`：暴露可读上下文，例如默认指南、项目记忆上下文。
 - `Prompts`：提供类似 skill 的可选工作流入口。
-- `Hooks`：Codex 自动注入兜底，不是主机制。
+- `Session files`：手动/半自动会话文件流，用于生成上下文和提交候选；不做自动会话注入。
 
 当前提供：
 
@@ -108,25 +161,27 @@ Codex/Claude 一类客户端可配置为 stdio MCP server：
 - Resource `context://personal-project-knowledge/project/{project}`：指定项目的默认指南 + 自动载入上下文。
 - Resource `memory://loaded/project/{project}`：指定项目的结构化记忆 JSON。
 - `manifest.json`：工具清单，便于插件/安装器/文档生成器发现能力。
+- `skills/personal-project-knowledge`：通用 skill 源。
+- `codex-plugin/personal-project-knowledge`：Codex adapter，从通用 skill 同步。
 
-## Hook 辅助脚本
+## 会话文件流脚本
 
-会话开始时生成可注入上下文：
+手动生成可注入上下文：
 
 ```powershell
-npx tsx src/scripts/hook-load.ts --cwd=C:\ProjectN --query=限时订单
+npm run session:load -- --cwd=C:\ProjectN --query=限时订单
 ```
 
 更完整的文件流包装：
 
 ```powershell
-# 1. 会话开始：生成 context.md 和 session.json
-npx tsx src/scripts/hook-start.ts --cwd=C:\ProjectN --query=限时订单
+# 1. 生成 context.md 和 session.json
+npm run session:start -- --cwd=C:\ProjectN --query=限时订单
 
-# 2. 把输出中的 context_path 内容粘贴到 Codex 会话开头
+# 2. 把输出中的 context_path 内容注入 AI 会话开头
 
 # 3. 会话结束：从对话文本生成 pending-candidates.json 和 review-candidates.md
-Get-Content C:\RequestFiles\conversation.txt | npx tsx src/scripts/hook-end.ts --session=<session_id>
+Get-Content C:\RequestFiles\conversation.txt | npm run session:end -- --session=<session_id>
 
 # 4. 如需确认高风险候选，编辑 confirmed-candidates.json
 # {
@@ -135,13 +190,13 @@ Get-Content C:\RequestFiles\conversation.txt | npx tsx src/scripts/hook-end.ts -
 # }
 
 # 5. 提交候选
-npx tsx src/scripts/hook-commit.ts --session=<session_id>
+npm run session:commit -- --session=<session_id>
 ```
 
 从对话文本提取候选：
 
 ```powershell
-Get-Content C:\RequestFiles\conversation.txt | npx tsx src/scripts/hook-extract.ts --project=ProjectN
+Get-Content C:\RequestFiles\conversation.txt | npm run session:extract -- --project=ProjectN
 ```
 
 手动备份：
@@ -186,4 +241,4 @@ npm run verify:web
 - 长记忆只自动载入标题、摘要、路径，不代表正文已读。
 - 文档正文必须通过 `read_doc` 按需读取。
 - 超过配置长度的短记忆会被拒绝，应改写成文档 + 长索引。
-- SessionStart hook 会自动注入默认使用指南；客户端支持 MCP prompts/resources 时，也可以显式读取对应 Prompt / Resource。
+- 自动会话注入 hook 已移除；客户端应通过 MCP instructions、tools/resources/prompts 或通用 skill/plugin 获取使用说明。
