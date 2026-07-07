@@ -1,0 +1,71 @@
+docs/MCP_DESIGN_REFERENCES.md
+  s_dd01f2d4cab624::t_95b31ae01137e9 3,11,13,15,21-22,30-32
+docs/ROADMAP.md
+  s_dd01f2d4cab624::t_678945c6c4e547 10
+docs/ARCHITECTURE.md
+  s_dd01f2d4cab624::t_7550c366338860 39-41
+  s_dd01f2d4cab624::t_6078242214c1b4 42
+codex-plugin/personal-project-knowledge/.codex-plugin/plugin.json
+  s_dd01f2d4cab624::t_a007d59f0fec55 4,12
+manifest.json
+  s_dd01f2d4cab624::t_e1c909372a6f2d 20-40
+scripts/install.ps1
+  s_dd01f2d4cab624::t_177501ed198cc4 12
+  s_dd01f2d4cab624::t_1d3378097b61cd 2,4-5,14,17-23,25,29,40-51,53-54,57,60-62,65,68-73
+README.md
+  s_dd01f2d4cab624::t_2e47b375b62009 172,179,184,193,199
+  s_dd01f2d4cab624::t_42e92f0248eeb7 97
+  s_dd01f2d4cab624::t_648fc0c0728d3b 53-74,76,164-165,181
+  s_dd01f2d4cab624::t_caf8dd24c235b6 154,167,169,178,244
+  s_dd01f2d4cab624::t_d0e14f5ee7f5d8 12-24,79,99,101-128
+scripts/package.ps1
+  s_dd01f2d4cab624::t_cd357c7dcbc647 52-53
+docs/SESSION_FILES.md
+  s_dd01f2d4cab624::t_e53a617be886e3 10,35,68
+  s_dd01f2d4cab624::t_64be5657956306 1,3,7,22,26,32
+src/usage-guide.ts
+  s_dd01f2d4cab624::t_936b8dbae942de 21
+package.json
+  s_dd01f2d4cab624::t_53f957e0998f89 24-27
+  s_dd01f2d4cab624::t_7aa35436539834 16-20
+docs/INSTALL_UNINSTALL.md
+  s_dd01f2d4cab624::t_5ff460ec2fd894 1-88
+src/scripts/hook-start.ts
+  s_dd01f2d4cab624::t_c82b39aa929fb7 28
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_6792b040c6f981 3,8,25
+plugin/personal-project-knowledge/manifest.json
+  s_dd01f2d4cab624::t_6387f529b7a63f 1-58
+plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_f9927faa13a704 1-39
+plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_1ee4db4547a001 1-47
+scripts/install-codex.ps1
+  s_dd01f2d4cab624::t_401b900342bf68 1-160
+scripts/sync-adapters.ps1
+  s_dd01f2d4cab624::t_79abbe73c3977b 1,4-8,10-11,13-19,21-22
+scripts/uninstall-codex.ps1
+  s_dd01f2d4cab624::t_26e14b2ac1680d 1-75
+scripts/uninstall.ps1
+  s_dd01f2d4cab624::t_1a95085cd39d8b 1-34
+skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_7f1904c6b3e6db 1-39
+skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_b3df146f90f045 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "82f51b66080c339cd459517fca3ddba48e5808f6",
+  "prompts": {},
+  "sessions": {
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
