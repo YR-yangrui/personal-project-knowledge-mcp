@@ -23,16 +23,25 @@
 
 ## Documents
 
+- `get_storage_info`: reveal data root, document root, memory root, backups, and import conventions.
 - `write_doc`: create or replace indexed Markdown.
+- `resolve_doc_path`: map a data-root-relative document path to its absolute file path and indexed state.
 - `patch_doc`: targeted replacement in an indexed Markdown document.
+- `move_doc`: move an indexed Markdown document within the data root and update related long indexes.
 - `create_or_update_doc_index`: make/update the auto-loaded long index for a document.
 - `promote_doc_to_long_memory`: alias for document indexing.
+
+## Migration
+
+- `import_markdown_dir`: bulk import existing Markdown directories into the MCP data root.
+- `migrate_markdown_file`: copy or move one external Markdown file into the MCP data root.
 
 ## Candidates And Sessions
 
 - `extract_memory_candidates`: propose memories from conversation text; does not write.
 - `commit_memory_candidates`: commit approved/low-risk candidates.
 - `record_session_artifacts`: store session documents and candidate memories.
+- `record_bug_report`: when the AI discovers a bug or confusing behavior in this MCP, record it as a `bug_report` document plus long index for later batch fixes.
 
 ## Maintenance
 
@@ -45,3 +54,5 @@
 - Do not answer from long index details until `read_doc` has loaded the body.
 - Prefer updating/deprecating old memories over writing contradictory new ones.
 - If the user says "记住", write memory immediately unless it is clearly too long; then write document + long index.
+- If manually adjusting files, never invent absolute paths; call `get_storage_info` or `resolve_doc_path`.
+- If MCP search, migration, or path behavior fails, call `record_bug_report` with component, expected behavior, actual behavior, and workaround if known.

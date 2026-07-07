@@ -3,10 +3,10 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { createId, nowIso } from './ids.js';
-import { memoryMarkdownPath, resolveDataPath, toRelativeDataPath } from './paths.js';
+import { ensureDir, memoryMarkdownPath, resolveDataPath, toRelativeDataPath } from './paths.js';
 import { readMarkdownContent, writeDocumentMarkdown, writeMemoryMarkdown } from './markdown.js';
 import type { AppConfig } from './config.js';
-import type { DocumentRecord, MemoryRecord, SearchDocsInput, SearchMemoryInput, WriteDocumentInput, WriteMemoryInput } from './types.js';
+import type { DocumentLocation, DocumentRecord, MemoryRecord, SearchDocsInput, SearchMemoryInput, StorageInfo, WriteDocumentInput, WriteMemoryInput } from './types.js';
 
 function json(value: unknown): string {
   return JSON.stringify(value ?? []);
@@ -72,8 +72,51 @@ function checksum(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
+function ftsMatchQuery(query: string): string {
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => `"${term.replace(/"/g, '""')}"`)
+    .join(' ');
+}
+
 export class KnowledgeRepository {
   constructor(private readonly db: Database.Database, private readonly config: AppConfig) {}
+
+  getStorageInfo(project?: string): StorageInfo {
+    const projectSegment = project ? path.join('docs', 'projects', project) : undefined;
+    return {
+      data_root: path.resolve(this.config.dataRoot),
+      documents_root: resolveDataPath(this.config.dataRoot, 'docs'),
+      memories_root: resolveDataPath(this.config.dataRoot, 'memories'),
+      database_path: resolveDataPath(this.config.dataRoot, 'memory.sqlite'),
+      config_path: resolveDataPath(this.config.dataRoot, 'config.yaml'),
+      backups_root: resolveDataPath(this.config.dataRoot, 'backups'),
+      default_imports_root: project
+        ? resolveDataPath(this.config.dataRoot, path.join('docs', 'projects', project, 'imports'))
+        : resolveDataPath(this.config.dataRoot, path.join('docs', 'projects', '_project_', 'imports')),
+      project_documents_root: projectSegment ? resolveDataPath(this.config.dataRoot, projectSegment) : undefined,
+      path_rules: [
+        'Tool inputs for document paths are data-root-relative paths, for example docs/projects/ProjectN/notes/example.md.',
+        'Absolute paths are exposed for manual inspection only; write_doc, patch_doc, read_doc and move_doc keep writes inside data_root.',
+        'Use migrate_markdown_file or import_markdown_dir to bring external Markdown files into data_root.'
+      ]
+    };
+  }
+
+  resolveDocumentPath(docPath: string): DocumentLocation {
+    const normalized = this.normalizeDataPath(docPath);
+    const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
+    const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
+    return {
+      relative_path: normalized,
+      absolute_path: absolutePath,
+      exists: fs.existsSync(absolutePath),
+      indexed: Boolean(row),
+      record: row ? mapDocument(row) : undefined
+    };
+  }
 
   writeMemory(input: WriteMemoryInput): MemoryRecord {
     if (input.load_level === 'short' && (input.content?.length ?? 0) > this.config.maxShortMemoryChars) {
@@ -141,8 +184,9 @@ export class KnowledgeRepository {
   }
 
   updateMemory(id: string, patch: Partial<WriteMemoryInput & { status: string; priority: string; superseded_by: string[] }>): MemoryRecord {
-    const current = this.getMemory(id);
-    if (!current) throw new Error(`Memory not found: ${id}`);
+    const currentRow = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as any;
+    if (!currentRow) throw new Error(`Memory not found: ${id}`);
+    const current = mapMemory(currentRow);
     const updated: MemoryRecord = {
       ...current,
       ...patch,
@@ -166,6 +210,10 @@ export class KnowledgeRepository {
         superseded_by: json(updated.superseded_by)
       });
     this.upsertMemoryFts(updated);
+    const storedMarkdownPath = typeof currentRow.markdown_path === 'string' && currentRow.markdown_path
+      ? resolveDataPath(this.config.dataRoot, currentRow.markdown_path)
+      : memoryMarkdownPath(this.config.dataRoot, updated.project, updated.load_level, updated.id, updated.title);
+    writeMemoryMarkdown(storedMarkdownPath, updated);
     return updated;
   }
 
@@ -196,7 +244,7 @@ export class KnowledgeRepository {
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     if (input.query?.trim()) {
-      params.query = input.query.trim();
+      params.query = ftsMatchQuery(input.query);
       const sql = `SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.id ${where ? `${where} AND` : 'WHERE'} memories_fts MATCH @query ORDER BY bm25(memories_fts), m.updated_at DESC LIMIT @limit`;
       return this.db.prepare(sql).all(params).map(mapMemory);
     }
@@ -241,7 +289,7 @@ export class KnowledgeRepository {
   writeDocument(input: WriteDocumentInput): DocumentRecord {
     const id = createId('doc');
     const now = nowIso();
-    const relativePath = input.path.replace(/\\/g, '/');
+    const relativePath = this.normalizeDataPath(input.path);
     const absolutePath = resolveDataPath(this.config.dataRoot, relativePath);
     const record: DocumentRecord = {
       id,
@@ -269,7 +317,7 @@ export class KnowledgeRepository {
   }
 
   upsertDocument(input: WriteDocumentInput): DocumentRecord {
-    const normalized = input.path.replace(/\\/g, '/');
+    const normalized = this.normalizeDataPath(input.path);
     const existing = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
     if (!existing) return this.writeDocument(input);
 
@@ -297,13 +345,13 @@ export class KnowledgeRepository {
     return updated;
   }
 
-  readDocument(docPath: string): { record?: DocumentRecord; content: string; data: Record<string, unknown> } {
-    const normalized = docPath.replace(/\\/g, '/');
+  readDocument(docPath: string): { record?: DocumentRecord; content: string; data: Record<string, unknown>; relative_path: string; absolute_path: string } {
+    const normalized = this.normalizeDataPath(docPath);
     const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
     if (!fs.existsSync(absolutePath)) throw new Error(`Document not found: ${docPath}`);
     const parsed = readMarkdownContent(absolutePath);
     const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
-    return { record: row ? mapDocument(row) : undefined, content: parsed.content, data: parsed.data };
+    return { record: row ? mapDocument(row) : undefined, content: parsed.content, data: parsed.data, relative_path: normalized, absolute_path: absolutePath };
   }
 
   dataRelativePathFromExternalImport(project: string, sourcePath: string, baseDir?: string): string {
@@ -313,7 +361,7 @@ export class KnowledgeRepository {
   }
 
   patchDocument(docPath: string, oldText: string, newText: string): DocumentRecord {
-    const normalized = docPath.replace(/\\/g, '/');
+    const normalized = this.normalizeDataPath(docPath);
     const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
     const parsed = readMarkdownContent(absolutePath);
     if (!parsed.content.includes(oldText)) throw new Error('old_text not found in document content.');
@@ -342,7 +390,7 @@ export class KnowledgeRepository {
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     if (input.query?.trim()) {
-      params.query = input.query.trim();
+      params.query = ftsMatchQuery(input.query);
       const sql = `SELECT d.* FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} documents_fts MATCH @query ORDER BY bm25(documents_fts), d.updated_at DESC LIMIT @limit`;
       return this.db.prepare(sql).all(params).map(mapDocument);
     }
@@ -350,7 +398,7 @@ export class KnowledgeRepository {
   }
 
   createOrUpdateDocIndex(docPath: string): MemoryRecord {
-    const normalized = docPath.replace(/\\/g, '/');
+    const normalized = this.normalizeDataPath(docPath);
     const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
     if (!row) throw new Error(`Document is not indexed: ${docPath}`);
     const doc = mapDocument(row);
@@ -399,6 +447,79 @@ export class KnowledgeRepository {
       related_doc: doc.path
     });
     return { document: doc, memory: updated };
+  }
+
+  moveDocument(oldPath: string, newPath: string, options: { overwrite?: boolean } = {}): {
+    document: DocumentRecord;
+    old_path: string;
+    new_path: string;
+    old_absolute_path: string;
+    new_absolute_path: string;
+    updated_memory_ids: string[];
+  } {
+    const oldRelative = this.normalizeDataPath(oldPath);
+    const newRelative = this.normalizeDataPath(newPath);
+    const oldAbsolute = resolveDataPath(this.config.dataRoot, oldRelative);
+    const newAbsolute = resolveDataPath(this.config.dataRoot, newRelative);
+    const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(oldRelative);
+    if (!row) throw new Error(`Document is not indexed: ${oldPath}`);
+    if (!fs.existsSync(oldAbsolute)) throw new Error(`Document file not found: ${oldPath}`);
+    if (oldRelative === newRelative) {
+      return {
+        document: mapDocument(row),
+        old_path: oldRelative,
+        new_path: newRelative,
+        old_absolute_path: oldAbsolute,
+        new_absolute_path: newAbsolute,
+        updated_memory_ids: []
+      };
+    }
+
+    const existingTarget = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(newRelative);
+    if (existingTarget) throw new Error(`Target path is already indexed: ${newPath}`);
+    if (fs.existsSync(newAbsolute) && !options.overwrite) {
+      throw new Error(`Target file already exists: ${newPath}`);
+    }
+
+    const parsed = readMarkdownContent(oldAbsolute);
+    const current = mapDocument(row);
+    const updated: DocumentRecord = {
+      ...current,
+      path: newRelative,
+      checksum: checksum(parsed.content),
+      updated_at: nowIso()
+    };
+
+    ensureDir(path.dirname(newAbsolute));
+    if (fs.existsSync(newAbsolute)) fs.rmSync(newAbsolute);
+    fs.renameSync(oldAbsolute, newAbsolute);
+    writeDocumentMarkdown(newAbsolute, updated, parsed.content);
+    this.db.prepare('UPDATE documents SET path=@path, checksum=@checksum, updated_at=@updated_at WHERE id=@id').run(updated);
+    this.upsertDocumentFts(updated, parsed.content);
+
+    const memoryRows = this.db.prepare('SELECT id FROM memories WHERE related_doc = ? OR id = ?')
+      .all(oldRelative, current.index_memory_id ?? '') as Array<{ id: string }>;
+    const updatedMemoryIds: string[] = [];
+    for (const memoryRow of memoryRows) {
+      const patch = memoryRow.id === current.index_memory_id
+        ? { title: updated.title, brief: updated.brief ?? `Document: ${updated.path}`, related_doc: updated.path, tags: updated.tags }
+        : { related_doc: updated.path };
+      this.updateMemory(memoryRow.id, patch as any);
+      updatedMemoryIds.push(memoryRow.id);
+    }
+
+    return {
+      document: updated,
+      old_path: oldRelative,
+      new_path: newRelative,
+      old_absolute_path: oldAbsolute,
+      new_absolute_path: newAbsolute,
+      updated_memory_ids: updatedMemoryIds
+    };
+  }
+
+  private normalizeDataPath(inputPath: string): string {
+    return inputPath.replace(/\\/g, '/').replace(/^\/+/, '');
   }
 
   private upsertMemoryFts(record: MemoryRecord): void {

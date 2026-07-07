@@ -17,6 +17,20 @@ export interface ImportMarkdownResult {
   skipped: Array<{ source: string; reason: string }>;
 }
 
+export interface MigrateMarkdownFileInput {
+  sourcePath: string;
+  project: string;
+  targetPath?: string;
+  baseDir?: string;
+  mode?: 'copy' | 'move';
+  createIndex?: boolean;
+  overwrite?: boolean;
+  semanticType?: string;
+  title?: string;
+  brief?: string;
+  tags?: string[];
+}
+
 const stopWords = new Set([
   'the', 'and', 'for', 'with', 'this', 'that', 'from', 'into',
   '一个', '这个', '那个', '需要', '可以', '默认', '系统', '项目', '文档',
@@ -76,39 +90,57 @@ export class StatsService {
 
     for (const file of files) {
       try {
-        const raw = fs.readFileSync(file, 'utf8');
-        const parsed = matter(raw);
-        const title = this.getTitle(parsed.content, parsed.data.title, file);
-        const brief = this.getBrief(parsed.content, parsed.data.brief);
-        const tags = Array.isArray(parsed.data.tags) ? parsed.data.tags.map(String) : ['import'];
-        const targetPath = this.repo.dataRelativePathFromExternalImport(input.project, file, sourceDir);
-        const record = input.overwrite
-          ? this.repo.upsertDocument({
-            project: input.project,
-            path: targetPath,
-            semantic_type: String(parsed.data.semantic_type ?? 'imported_doc'),
-            title,
-            brief,
-            content: parsed.content,
-            tags
-          })
-          : this.repo.writeDocument({
-            project: input.project,
-            path: targetPath,
-            semantic_type: String(parsed.data.semantic_type ?? 'imported_doc'),
-            title,
-            brief,
-            content: parsed.content,
-            tags
-          });
-        const index = input.createIndex === false ? undefined : this.repo.createOrUpdateDocIndex(record.path);
-        imported.push({ source: file, path: record.path, title: record.title, index_memory_id: index?.id ?? record.index_memory_id });
+        imported.push(await this.migrateMarkdownFile({
+          sourcePath: file,
+          project: input.project,
+          baseDir: sourceDir,
+          mode: 'copy',
+          createIndex: input.createIndex,
+          overwrite: input.overwrite
+        }));
       } catch (error) {
         skipped.push({ source: file, reason: error instanceof Error ? error.message : String(error) });
       }
     }
 
     return { imported, skipped };
+  }
+
+  async migrateMarkdownFile(input: MigrateMarkdownFileInput): Promise<{ source: string; path: string; title: string; index_memory_id?: string | null; mode: 'copy' | 'move'; absolute_path: string }> {
+    const sourcePath = path.resolve(input.sourcePath);
+    if (!fs.existsSync(sourcePath)) throw new Error(`Source Markdown file not found: ${input.sourcePath}`);
+    const raw = fs.readFileSync(sourcePath, 'utf8');
+    const parsed = matter(raw);
+    const targetPath = input.targetPath ?? this.repo.dataRelativePathFromExternalImport(input.project, sourcePath, input.baseDir);
+    const targetLocation = this.repo.resolveDocumentPath(targetPath);
+    if ((targetLocation.indexed || targetLocation.exists) && !input.overwrite) {
+      throw new Error(`Target document already exists: ${targetPath}`);
+    }
+
+    const recordInput = {
+      project: input.project,
+      path: targetPath,
+      semantic_type: input.semanticType ?? String(parsed.data.semantic_type ?? 'imported_doc'),
+      title: input.title ?? this.getTitle(parsed.content, parsed.data.title, sourcePath),
+      brief: input.brief ?? this.getBrief(parsed.content, parsed.data.brief),
+      content: parsed.content,
+      tags: input.tags ?? (Array.isArray(parsed.data.tags) ? parsed.data.tags.map(String) : ['import'])
+    };
+    const record = input.overwrite ? this.repo.upsertDocument(recordInput) : this.repo.writeDocument(recordInput);
+    const index = input.createIndex === false ? undefined : this.repo.createOrUpdateDocIndex(record.path);
+    const mode = input.mode ?? 'copy';
+    if (mode === 'move') {
+      // 迁移采用先写入并索引成功、后删除源文件，避免失败时丢失原始 Markdown。
+      fs.unlinkSync(sourcePath);
+    }
+    return {
+      source: sourcePath,
+      path: record.path,
+      title: record.title,
+      index_memory_id: index?.id ?? record.index_memory_id,
+      mode,
+      absolute_path: this.repo.resolveDocumentPath(record.path).absolute_path
+    };
   }
 
   private collect(text: string, source: string, map: Map<string, TermStat>): void {

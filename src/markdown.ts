@@ -43,6 +43,7 @@ export function writeDocumentMarkdown(filePath: string, record: DocumentRecord, 
   const data = {
     id: record.id,
     project: record.project,
+    path: record.path,
     semantic_type: record.semantic_type,
     title: record.title,
     brief: record.brief ?? undefined,

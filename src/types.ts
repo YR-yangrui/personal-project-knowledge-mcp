@@ -45,6 +45,26 @@ export interface DocumentRecord {
   updated_at: string;
 }
 
+export interface StorageInfo {
+  data_root: string;
+  documents_root: string;
+  memories_root: string;
+  database_path: string;
+  config_path: string;
+  backups_root: string;
+  default_imports_root: string;
+  project_documents_root?: string;
+  path_rules: string[];
+}
+
+export interface DocumentLocation {
+  relative_path: string;
+  absolute_path: string;
+  exists: boolean;
+  indexed: boolean;
+  record?: DocumentRecord;
+}
+
 export interface WriteMemoryInput {
   project?: string;
   scope?: Scope;

@@ -27,6 +27,13 @@
       <pre id="contextOut" class="output"></pre>
     </section>
 
+    <section class="panel span-2">
+      <h2>存储位置</h2>
+      <p class="meta">给 AI 和人工整理使用：所有文档路径以 dataRoot 为根，绝对路径仅用于查看和迁移确认。</p>
+      <button id="storageBtn">刷新存储位置</button>
+      <pre id="storageOut" class="output"></pre>
+    </section>
+
     <section class="panel">
       <h2>记忆搜索</h2>
       <div class="row">
@@ -92,6 +99,39 @@
       </div>
       <button id="importBtn">开始导入</button>
       <pre id="importOut" class="output"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>迁移单个 Markdown</h2>
+      <input id="migrateSource" placeholder="C:\RequestFiles\legacy.md" />
+      <input id="migrateTarget" placeholder="docs/projects/ProjectN/imports/legacy.md（可选）" />
+      <div class="row">
+        <select id="migrateMode">
+          <option value="copy">copy</option>
+          <option value="move">move</option>
+        </select>
+        <label><input id="migrateOverwrite" type="checkbox" checked /> 覆盖</label>
+      </div>
+      <button id="migrateBtn">迁移文件</button>
+      <pre id="migrateOut" class="output"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>移动已入库文档</h2>
+      <input id="moveOldPath" placeholder="旧 dataRoot 相对路径" />
+      <input id="moveNewPath" placeholder="新 dataRoot 相对路径" />
+      <label><input id="moveOverwrite" type="checkbox" /> 覆盖已有文件</label>
+      <button id="moveDocBtn">移动文档</button>
+      <pre id="moveOut" class="output"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>MCP Bug 反馈</h2>
+      <input id="bugTitle" placeholder="问题标题" />
+      <input id="bugComponent" placeholder="组件，例如 search_docs" />
+      <textarea id="bugDescription" placeholder="AI 使用 MCP 过程中发现的问题、期望和实际表现"></textarea>
+      <button id="bugReportBtn">记录 bug_report</button>
+      <pre id="bugOut" class="output"></pre>
     </section>
 
     <section class="panel span-2">

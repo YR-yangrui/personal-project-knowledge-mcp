@@ -2,6 +2,8 @@ import type { KnowledgeRepository } from './repository.js';
 import { CandidateExtractor } from './candidates.js';
 import type { AppConfig } from './config.js';
 import type { CommitCandidatesInput, CommitCandidatesResult, MemoryCandidate, MemoryRecord } from './types.js';
+import { nowIso } from './ids.js';
+import { slugify } from './paths.js';
 
 export class KnowledgeService {
   private readonly extractor: CandidateExtractor;
@@ -173,5 +175,61 @@ export class KnowledgeService {
     committed.push(...memoryResult.committed);
     skipped.push(...memoryResult.skipped);
     return { committed, skipped };
+  }
+
+  recordBugReport(input: {
+    project?: string;
+    title: string;
+    description: string;
+    severity?: 'critical' | 'high' | 'normal' | 'low';
+    component?: string;
+    steps?: string[];
+    expected?: string;
+    actual?: string;
+    workaround?: string;
+    source?: string;
+    tags?: string[];
+  }): { document: ReturnType<KnowledgeRepository['writeDocument']>; memory: ReturnType<KnowledgeRepository['createOrUpdateDocIndex']> } {
+    const project = input.project ?? 'global';
+    const timestamp = nowIso();
+    const day = timestamp.slice(0, 10);
+    const docPath = `docs/projects/${project}/bug-reports/${day}-${slugify(input.title)}.md`;
+    const content = [
+      `# ${input.title}`,
+      '',
+      `- Project: ${project}`,
+      `- Severity: ${input.severity ?? 'normal'}`,
+      input.component ? `- Component: ${input.component}` : undefined,
+      input.source ? `- Source: ${input.source}` : undefined,
+      `- Reported At: ${timestamp}`,
+      '',
+      '## Description',
+      '',
+      input.description,
+      '',
+      input.steps?.length ? '## Steps To Reproduce' : undefined,
+      ...(input.steps?.length ? ['', ...input.steps.map((step, index) => `${index + 1}. ${step}`), ''] : []),
+      input.expected ? '## Expected' : undefined,
+      input.expected ? '' : undefined,
+      input.expected,
+      input.actual ? '## Actual' : undefined,
+      input.actual ? '' : undefined,
+      input.actual,
+      input.workaround ? '## Workaround' : undefined,
+      input.workaround ? '' : undefined,
+      input.workaround
+    ].filter((line) => line !== undefined).join('\n');
+
+    const document = this.repo.writeDocument({
+      project,
+      path: docPath,
+      semantic_type: 'bug_report',
+      title: input.title,
+      brief: `${input.severity ?? 'normal'} bug${input.component ? ` in ${input.component}` : ''}: ${input.description.slice(0, 120)}`,
+      content,
+      tags: ['bug-report', ...(input.tags ?? [])]
+    });
+    const memory = this.repo.createOrUpdateDocIndex(document.path);
+    return { document, memory };
   }
 }

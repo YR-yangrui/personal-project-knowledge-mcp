@@ -8,7 +8,7 @@ import { backupNow } from './backup.js';
 import { usageGuideMarkdown } from './usage-guide.js';
 import { renderContextMarkdown } from './context-markdown.js';
 
-const { config, repo, service } = createApp();
+const { config, repo, service, stats } = createApp();
 
 const server = new McpServer({
   name: 'personal-project-knowledge-mcp',
@@ -41,6 +41,13 @@ server.registerTool('get_usage_guide', {
   description: 'Read the default server instructions for this personal knowledge MCP. Use when the client did not surface MCP initialize instructions or you need to confirm memory/document boundaries.',
   inputSchema: {}
 }, async () => jsonResult({ markdown: usageGuideMarkdown }));
+
+server.registerTool('get_storage_info', {
+  description: 'Show where this MCP stores data, documents, memories, backups, and default imports. Use before manual file adjustment, migration, or when the assistant needs absolute document locations.',
+  inputSchema: {
+    project: z.string().optional()
+  }
+}, async ({ project }) => jsonResult(repo.getStorageInfo(project)));
 
 server.registerPrompt('use_personal_project_knowledge', {
   title: 'Use Personal Project Knowledge',
@@ -140,7 +147,7 @@ server.registerTool('search_docs', {
 }, async (input) => jsonResult({ results: repo.searchDocs(input) }));
 
 server.registerTool('read_doc', {
-  description: 'Read Markdown document body by data-root-relative path. Use only after search_docs/build_context/long_index indicates the document is relevant.',
+  description: 'Read Markdown document body by data-root-relative path. Returns relative_path and absolute_path so the assistant can tell where the file is saved. Use only after search_docs/build_context/long_index indicates the document is relevant.',
   inputSchema: { path: z.string() }
 }, async ({ path }) => jsonResult(repo.readDocument(path)));
 
@@ -159,10 +166,24 @@ server.registerTool('write_doc', {
   }
 }, async (input) => jsonResult(repo.writeDocument(input)));
 
+server.registerTool('resolve_doc_path', {
+  description: 'Resolve a data-root-relative document path to its absolute file path and indexing state. Use when manually adjusting or moving a Markdown document.',
+  inputSchema: { path: z.string() }
+}, async ({ path }) => jsonResult(repo.resolveDocumentPath(path)));
+
 server.registerTool('patch_doc', {
   description: 'Patch an indexed Markdown document with targeted text replacement. Use for small doc corrections; use write_doc for full rewrites.',
   inputSchema: { path: z.string(), old_text: z.string(), new_text: z.string() }
 }, async ({ path, old_text, new_text }) => jsonResult(repo.patchDocument(path, old_text, new_text)));
+
+server.registerTool('move_doc', {
+  description: 'Move an indexed Markdown document inside the data root and update its document record plus related long_index memory paths. Use after manual reclassification or cleanup.',
+  inputSchema: {
+    old_path: z.string(),
+    new_path: z.string(),
+    overwrite: z.boolean().optional()
+  }
+}, async ({ old_path, new_path, overwrite }) => jsonResult(repo.moveDocument(old_path, new_path, { overwrite })));
 
 server.registerTool('create_or_update_doc_index', {
   description: 'Create or update a long_index memory for an indexed document so its title/brief/path auto-loads while the long Markdown body remains read-on-demand.',
@@ -178,6 +199,69 @@ server.registerTool('demote_memory_to_doc', {
   description: 'Move an overlong memory body into a Markdown document and keep a long_index memory entry. Use when a short memory is too large or should not auto-load in full.',
   inputSchema: { memory_id: z.string() }
 }, async ({ memory_id }) => jsonResult(repo.demoteMemoryToDoc(memory_id)));
+
+server.registerTool('import_markdown_dir', {
+  description: 'Import an external Markdown directory into this MCP data root. Use for bulk migration of existing personal docs; creates indexed documents and optional long_index memories.',
+  inputSchema: {
+    source_dir: z.string(),
+    project: z.string(),
+    pattern: z.string().optional(),
+    create_index: z.boolean().optional(),
+    overwrite: z.boolean().optional()
+  }
+}, async ({ source_dir, project, pattern, create_index, overwrite }) => jsonResult(await stats.importMarkdownDir({
+  sourceDir: source_dir,
+  project,
+  pattern,
+  createIndex: create_index,
+  overwrite
+})));
+
+server.registerTool('migrate_markdown_file', {
+  description: 'Copy or move one external Markdown file into this MCP data root. Use for controlled document migration; move mode deletes the source only after the new indexed document is written.',
+  inputSchema: {
+    source_path: z.string(),
+    project: z.string(),
+    target_path: z.string().optional(),
+    base_dir: z.string().optional(),
+    mode: z.enum(['copy', 'move']).optional(),
+    create_index: z.boolean().optional(),
+    overwrite: z.boolean().optional(),
+    semantic_type: z.string().optional(),
+    title: z.string().optional(),
+    brief: z.string().optional(),
+    tags: z.array(z.string()).optional()
+  }
+}, async (input) => jsonResult(await stats.migrateMarkdownFile({
+  sourcePath: input.source_path,
+  project: input.project,
+  targetPath: input.target_path,
+  baseDir: input.base_dir,
+  mode: input.mode,
+  createIndex: input.create_index,
+  overwrite: input.overwrite,
+  semanticType: input.semantic_type,
+  title: input.title,
+  brief: input.brief,
+  tags: input.tags
+})));
+
+server.registerTool('record_bug_report', {
+  description: 'Record a bug or feedback about this MCP discovered by the AI while using it. Creates a bug_report Markdown document plus long_index so maintainers can batch review and fix later.',
+  inputSchema: {
+    project: z.string().optional(),
+    title: z.string(),
+    description: z.string(),
+    severity: z.enum(['critical', 'high', 'normal', 'low']).optional(),
+    component: z.string().optional(),
+    steps: z.array(z.string()).optional(),
+    expected: z.string().optional(),
+    actual: z.string().optional(),
+    workaround: z.string().optional(),
+    source: z.string().optional(),
+    tags: z.array(z.string()).optional()
+  }
+}, async (input) => jsonResult(service.recordBugReport(input)));
 
 server.registerTool('extract_memory_candidates', {
   description: 'Extract heuristic memory candidates from conversation text without writing anything. Use near session end or when reviewing what should be remembered.',
@@ -250,6 +334,14 @@ server.registerResource('usage-guide', 'guide://personal-project-knowledge/usage
   mimeType: 'text/markdown'
 }, async (uri) => ({
   contents: [{ uri: uri.href, mimeType: 'text/markdown', text: usageGuideMarkdown }]
+}));
+
+server.registerResource('storage-locations', 'storage://personal-project-knowledge/locations', {
+  title: 'Personal Project Knowledge storage locations',
+  description: 'Absolute and relative storage roots for manual document inspection, migration, and cleanup.',
+  mimeType: 'application/json'
+}, async (uri) => ({
+  contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(repo.getStorageInfo(), null, 2) }]
 }));
 
 server.registerResource('project-context', new ResourceTemplate('context://personal-project-knowledge/project/{project}', { list: undefined }), {

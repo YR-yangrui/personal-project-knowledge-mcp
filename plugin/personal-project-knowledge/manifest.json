@@ -29,12 +29,17 @@
       "description": "Default MCP usage guide."
     },
     {
+      "uri": "storage://personal-project-knowledge/locations",
+      "description": "Storage roots and path rules for documents and migrations."
+    },
+    {
       "uri": "context://personal-project-knowledge/project/{project}",
       "description": "Project memory context with short memories and long indexes."
     }
   ],
   "tools": [
     "get_usage_guide",
+    "get_storage_info",
     "build_context",
     "list_loaded_memory",
     "search_memory",
@@ -46,13 +51,18 @@
     "search_docs",
     "read_doc",
     "write_doc",
+    "resolve_doc_path",
     "patch_doc",
+    "move_doc",
     "create_or_update_doc_index",
     "promote_doc_to_long_memory",
     "demote_memory_to_doc",
+    "import_markdown_dir",
+    "migrate_markdown_file",
     "extract_memory_candidates",
     "commit_memory_candidates",
     "record_session_artifacts",
+    "record_bug_report",
     "backup_now"
   ]
 }

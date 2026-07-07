@@ -27,6 +27,8 @@ Do not use this MCP for code symbol discovery unless the user is asking about st
 4. For long content, call `write_doc`, then `create_or_update_doc_index`.
 5. For stale facts, call `update_memory` or `deprecate_memory`; do not leave contradictory active memories.
 6. For session outputs worth preserving, call `record_session_artifacts`.
+7. Before manual document cleanup or migration, call `get_storage_info`; use `resolve_doc_path` and `move_doc` for controlled moves inside the data root.
+8. If you discover a bug or confusing behavior in this MCP while using it, call `record_bug_report` immediately so it can be fixed later.
 
 ## Memory Boundaries
 

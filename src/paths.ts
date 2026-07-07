@@ -24,7 +24,7 @@ export function resolveDataPath(dataRoot: string, inputPath: string): string {
   const resolved = path.resolve(dataRoot, inputPath);
   const root = path.resolve(dataRoot);
   // 防止 MCP 调用者用 ../ 把文档写出个人知识库根目录。
-  if (!resolved.startsWith(root)) {
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
     throw new Error(`Path escapes data root: ${inputPath}`);
   }
   return resolved;

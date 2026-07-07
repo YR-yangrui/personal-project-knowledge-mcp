@@ -23,7 +23,11 @@ export const usageGuideMarkdown = `# Personal Project Knowledge MCP 使用指南
 - 写入记忆：write_memory，短记忆必须简短；长内容先写文档。
 - 搜索记忆：search_memory，必要时 get_memory。
 - 写入文档：write_doc，然后 create_or_update_doc_index。
-- 搜索 / 读取文档：search_docs 返回索引，read_doc 读取正文。
+- 搜索 / 读取文档：search_docs 返回索引，read_doc 读取正文和保存路径。
+- 查看保存位置：get_storage_info 或 storage://personal-project-knowledge/locations。
+- 手动整理文档：resolve_doc_path 查看绝对路径，move_doc 在 dataRoot 内移动并同步索引。
+- 迁移旧文档：import_markdown_dir 批量导入目录，migrate_markdown_file 迁移单个 Markdown 文件。
+- 反馈 MCP 自身问题：record_bug_report，AI 使用 MCP 发现 bug 时应即时记录，后续统一修复。
 - 内容过长：demote_memory_to_doc，把短记忆降级为文档 + 长索引。
 
 ## 写入判断
@@ -39,5 +43,7 @@ export const usageGuideMarkdown = `# Personal Project Knowledge MCP 使用指南
 - 记忆的定义是“会自动载入的内容”；不会自动载入的长正文应归类为文档。
 - 短记忆可以直接作为已知事实使用。
 - 长记忆索引只说明存在相关资料，不代表正文已读；需要细节时必须 read_doc。
+- 所有文档保存在 dataRoot 下，工具参数使用 dataRoot 相对路径；绝对路径只用于人工查看和迁移确认。
+- 发现本 MCP 的 bug、工具描述不清、迁移/搜索异常时，用 record_bug_report 写入 bug_report 文档。
 - 这个 MCP 是个人使用系统，不处理团队权限、协同审批或多人知识治理。
 `;

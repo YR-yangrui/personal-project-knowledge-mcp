@@ -28,6 +28,10 @@ app.get('/api/health', (_req, res) => {
   res.json(ok({ dataRoot: config.dataRoot, version: '0.1.0' }));
 });
 
+app.get('/api/storage', (req, res) => {
+  res.json(ok(repo.getStorageInfo(req.query.project ? String(req.query.project) : undefined)));
+});
+
 app.get('/api/projects', (_req, res) => {
   res.json(ok({ projects: repo.listProjects() }));
 });
@@ -73,8 +77,16 @@ app.get('/api/docs/read', (req, res) => {
   res.json(ok(repo.readDocument(String(req.query.path))));
 });
 
+app.get('/api/docs/resolve', (req, res) => {
+  res.json(ok(repo.resolveDocumentPath(String(req.query.path))));
+});
+
 app.post('/api/docs', (req, res) => {
   res.json(ok(repo.writeDocument(req.body)));
+});
+
+app.post('/api/docs/move', (req, res) => {
+  res.json(ok(repo.moveDocument(req.body.oldPath, req.body.newPath, { overwrite: req.body.overwrite })));
 });
 
 app.post('/api/docs/index', (req, res) => {
@@ -98,6 +110,26 @@ app.post('/api/import/markdown', asyncRoute(async (req, res) => {
     overwrite: req.body.overwrite
   })));
 }));
+
+app.post('/api/migrate/markdown-file', asyncRoute(async (req, res) => {
+  res.json(ok(await stats.migrateMarkdownFile({
+    sourcePath: req.body.sourcePath,
+    project: req.body.project,
+    targetPath: req.body.targetPath,
+    baseDir: req.body.baseDir,
+    mode: req.body.mode,
+    createIndex: req.body.createIndex,
+    overwrite: req.body.overwrite,
+    semanticType: req.body.semanticType,
+    title: req.body.title,
+    brief: req.body.brief,
+    tags: req.body.tags
+  })));
+}));
+
+app.post('/api/bug-reports', (req, res) => {
+  res.json(ok(service.recordBugReport(req.body)));
+});
 
 app.post('/api/candidates/extract', (req, res) => {
   res.json(ok({ candidates: service.extractMemoryCandidates(req.body.conversation ?? '', req.body.project) }));

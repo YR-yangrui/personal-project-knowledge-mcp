@@ -131,16 +131,20 @@ powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveData -Forc
 ## 核心工具
 
 - `get_usage_guide`：读取默认使用指南，说明什么时候优先使用本 MCP。
+- `get_storage_info`：查看 dataRoot、文档目录、记忆目录、备份目录和默认导入路径。
 - `build_context`：构建自动载入上下文。
 - `list_loaded_memory`：查看当前项目会自动载入的短记忆和长索引。
 - `write_memory`：写短记忆或长记忆索引。
 - `search_memory` / `get_memory`：搜索和读取记忆。
-- `write_doc` / `search_docs` / `read_doc`：管理 Markdown 文档。
+- `write_doc` / `search_docs` / `read_doc`：管理 Markdown 文档；`read_doc` 会返回相对路径和绝对路径。
+- `resolve_doc_path` / `move_doc`：解析文档真实保存位置，并在 dataRoot 内移动已入库文档。
+- `import_markdown_dir` / `migrate_markdown_file`：批量导入目录或迁移单个 Markdown 文件。
 - `create_or_update_doc_index`：让文档生成可自动载入的长记忆索引。
 - `demote_memory_to_doc`：把过长短记忆降级成文档 + 长索引。
 - `extract_memory_candidates`：从对话文本启发式提取候选，不直接写入。
 - `commit_memory_candidates`：提交候选，高风险类型默认需要确认。
 - `record_session_artifacts`：记录会话文档并生成 long_index。
+- `record_bug_report`：AI 使用 MCP 发现 MCP 自身 bug/不清晰行为时，记录为 `bug_report` 文档方便后续统一修复。
 - `backup_now`：备份 SQLite 数据库文件。
 
 ## MCP Prompt / Resource
@@ -158,6 +162,7 @@ powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveData -Forc
 - Server instructions：默认使用指南，客户端初始化 MCP server 时即可获取。
 - Prompt `use_personal_project_knowledge`：载入默认指南 + 当前项目短记忆 + 长记忆索引，可传 `project`、`cwd`、`query`。
 - Resource `guide://personal-project-knowledge/usage`：默认使用指南，说明应优先用本 MCP 管理记忆和文档。
+- Resource `storage://personal-project-knowledge/locations`：dataRoot、文档目录、记忆目录和路径规则。
 - Resource `context://personal-project-knowledge/project/{project}`：指定项目的默认指南 + 自动载入上下文。
 - Resource `memory://loaded/project/{project}`：指定项目的结构化记忆 JSON。
 - `manifest.json`：工具清单，便于插件/安装器/文档生成器发现能力。
@@ -222,11 +227,15 @@ http://127.0.0.1:8787
 Web UI 首版支持：
 
 - 查看当前数据目录和项目。
+- 查看 dataRoot、文档目录、默认导入目录等存储位置。
 - 构建自动载入上下文。
 - 搜索、新增、废弃记忆。
 - 搜索、读取、新增文档并创建 `long_index`。
 - 查看高频统计和高频候选。
 - 导入现有 Markdown 目录。
+- 迁移单个 Markdown 文件。
+- 移动已入库文档并同步索引。
+- 记录 MCP bug/反馈为 `bug_report`。
 - 触发 SQLite 备份。
 
 Web API 验证：

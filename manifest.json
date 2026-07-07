@@ -30,6 +30,10 @@
       "description": "Default usage guide exposed by the MCP server."
     },
     {
+      "uri": "storage://personal-project-knowledge/locations",
+      "description": "Storage roots and path rules for document inspection and migration."
+    },
+    {
       "uri": "context://personal-project-knowledge/project/{project}",
       "description": "Project context with full short memories and long memory indexes."
     },
@@ -42,6 +46,10 @@
     {
       "name": "get_usage_guide",
       "description": "Read default server instructions for using this MCP as personal memory and document management."
+    },
+    {
+      "name": "get_storage_info",
+      "description": "Show data root, document root, memory root, backups, and import conventions."
     },
     {
       "name": "build_context",
@@ -88,8 +96,16 @@
       "description": "Write and index a Markdown document."
     },
     {
+      "name": "resolve_doc_path",
+      "description": "Resolve a document path to its absolute file path and indexing state."
+    },
+    {
       "name": "patch_doc",
       "description": "Replace text in an indexed Markdown document."
+    },
+    {
+      "name": "move_doc",
+      "description": "Move an indexed document within the data root and update related long indexes."
     },
     {
       "name": "create_or_update_doc_index",
@@ -104,6 +120,14 @@
       "description": "Move an overlong memory body into a document and keep a long memory index."
     },
     {
+      "name": "import_markdown_dir",
+      "description": "Bulk import external Markdown directories into the data root."
+    },
+    {
+      "name": "migrate_markdown_file",
+      "description": "Copy or move one external Markdown file into the data root."
+    },
+    {
       "name": "extract_memory_candidates",
       "description": "Extract heuristic memory candidates from conversation text without writing them."
     },
@@ -114,6 +138,10 @@
     {
       "name": "record_session_artifacts",
       "description": "Record session documents and memory candidates; documents become long indexes."
+    },
+    {
+      "name": "record_bug_report",
+      "description": "Record an MCP bug or confusing behavior as a bug_report document plus long index."
     },
     {
       "name": "backup_now",

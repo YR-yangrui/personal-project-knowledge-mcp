@@ -35,6 +35,11 @@ async function refreshHealth() {
   $('health').textContent = `dataRoot: ${health.dataRoot}`;
 }
 
+$('storageBtn').onclick = async () => {
+  const data = await api(`/api/storage?project=${encodeURIComponent(project())}`);
+  $('storageOut').textContent = JSON.stringify(data, null, 2);
+};
+
 $('loadContextBtn').onclick = async () => {
   const data = await api(`/api/context?project=${encodeURIComponent(project())}&query=${encodeURIComponent($('queryInput').value)}`);
   $('contextOut').textContent = JSON.stringify(data, null, 2);
@@ -121,6 +126,50 @@ $('importBtn').onclick = async () => {
   $('importOut').textContent = JSON.stringify(data, null, 2);
 };
 
+$('migrateBtn').onclick = async () => {
+  const data = await api('/api/migrate/markdown-file', {
+    method: 'POST',
+    body: {
+      project: project(),
+      sourcePath: $('migrateSource').value,
+      targetPath: $('migrateTarget').value || undefined,
+      mode: $('migrateMode').value,
+      overwrite: $('migrateOverwrite').checked,
+      createIndex: true
+    }
+  });
+  $('migrateOut').textContent = JSON.stringify(data, null, 2);
+  $('searchDocsBtn').click();
+};
+
+$('moveDocBtn').onclick = async () => {
+  const data = await api('/api/docs/move', {
+    method: 'POST',
+    body: {
+      oldPath: $('moveOldPath').value,
+      newPath: $('moveNewPath').value,
+      overwrite: $('moveOverwrite').checked
+    }
+  });
+  $('moveOut').textContent = JSON.stringify(data, null, 2);
+  $('searchDocsBtn').click();
+};
+
+$('bugReportBtn').onclick = async () => {
+  const data = await api('/api/bug-reports', {
+    method: 'POST',
+    body: {
+      project: 'personal-project-knowledge-mcp',
+      title: $('bugTitle').value,
+      component: $('bugComponent').value || undefined,
+      description: $('bugDescription').value,
+      severity: 'normal',
+      source: 'web-ui'
+    }
+  });
+  $('bugOut').textContent = JSON.stringify(data, null, 2);
+};
+
 $('extractBtn').onclick = async () => {
   const data = await api('/api/candidates/extract', {
     method: 'POST',
@@ -135,6 +184,7 @@ $('backupBtn').onclick = async () => {
 };
 
 refreshHealth().then(() => {
+  $('storageBtn').click();
   $('loadContextBtn').click();
   $('searchMemoryBtn').click();
   $('searchDocsBtn').click();

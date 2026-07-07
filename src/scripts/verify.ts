@@ -8,7 +8,7 @@ process.env.PPKM_DATA_ROOT = tempRoot;
 
 const { createApp } = await import('../app.js');
 
-const { service, repo, db } = createApp();
+const { service, repo, stats, db } = createApp();
 
 repo.writeMemory({
   project: 'global',
@@ -42,6 +42,44 @@ repo.createOrUpdateDocIndex(doc.path);
 const context = service.buildContext('ProjectN', '订单系统', 4000);
 const memoryResults = repo.searchMemory({ project: 'ProjectN', query: '订单系统', limit: 10 });
 const docResults = repo.searchDocs({ project: 'ProjectN', query: '订单系统', limit: 10 });
+const hyphenDoc = repo.writeDocument({
+  project: 'ProjectN',
+  path: 'docs/projects/ProjectN/skills/update-doc.md',
+  semantic_type: 'module_doc',
+  title: 'update-doc skill',
+  brief: '用于验证带连字符的 FTS 查询不会被解析为减号语法。',
+  tags: ['update-doc', 'verify'],
+  content: '# update-doc skill\n\n搜索 update-doc 时不能报 no such column: doc。\n'
+});
+repo.createOrUpdateDocIndex(hyphenDoc.path);
+const hyphenDocResults = repo.searchDocs({ project: 'ProjectN', query: 'update-doc', limit: 10 });
+const hyphenMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'update-doc', limit: 10 });
+const storageInfo = repo.getStorageInfo('ProjectN');
+const resolvedBeforeMove = repo.resolveDocumentPath(hyphenDoc.path);
+const movedDoc = repo.moveDocument(hyphenDoc.path, 'docs/projects/ProjectN/module-notes/update-doc.md');
+const resolvedAfterMove = repo.resolveDocumentPath(movedDoc.new_path);
+const externalDir = path.join(tempRoot, 'external-docs');
+fs.mkdirSync(externalDir, { recursive: true });
+const externalFile = path.join(externalDir, 'legacy-note.md');
+fs.writeFileSync(externalFile, '# Legacy Note\n\n迁移单个 Markdown 文件。\n', 'utf8');
+const migratedFile = await stats.migrateMarkdownFile({
+  sourcePath: externalFile,
+  project: 'ProjectN',
+  targetPath: 'docs/projects/ProjectN/imports/legacy-note.md',
+  mode: 'copy',
+  createIndex: true,
+  overwrite: true
+});
+const bugReport = service.recordBugReport({
+  project: 'personal-project-knowledge-mcp',
+  title: 'FTS 查询带连字符时报错',
+  description: 'AI 搜索 update-doc 时 SQLite FTS 把 -doc 当成语法导致 no such column: doc。',
+  severity: 'high',
+  component: 'search_docs',
+  actual: 'no such column: doc',
+  expected: '按普通文本搜索 update-doc。',
+  tags: ['fts', 'hyphen']
+});
 const candidates = service.extractMemoryCandidates('以后默认用中文回复。这个项目决定采用 TypeScript 实现 MCP。PowerShell here-string 嵌套引号是坑。', 'ProjectN');
 const commitResult = service.commitMemoryCandidates({
   candidates: candidates.filter((candidate) => candidate.semantic_type !== 'decision'),
@@ -87,6 +125,15 @@ if ((context as any).loaded_short_memories.length === 0) failures.push('No short
 if ((context as any).loaded_long_memory_index.length === 0) failures.push('No long memory indexes loaded.');
 if (memoryResults.length === 0) failures.push('Memory search returned no results.');
 if (docResults.length === 0) failures.push('Doc search returned no results.');
+if (hyphenDocResults.length === 0) failures.push('Hyphen doc search returned no results.');
+if (hyphenMemoryResults.length === 0) failures.push('Hyphen memory search returned no results.');
+if (!storageInfo.project_documents_root?.includes('ProjectN')) failures.push('Storage info did not include project document root.');
+if (!resolvedBeforeMove.absolute_path.endsWith('update-doc.md')) failures.push('resolveDocumentPath did not return absolute doc path.');
+if (!fs.existsSync(resolvedAfterMove.absolute_path)) failures.push('moveDocument did not move the Markdown file.');
+if (movedDoc.updated_memory_ids.length === 0) failures.push('moveDocument did not update related long_index memory.');
+if (!fs.existsSync(externalFile)) failures.push('migrateMarkdownFile copy mode removed the source file.');
+if (!fs.existsSync(migratedFile.absolute_path)) failures.push('migrateMarkdownFile did not create target document.');
+if (bugReport.document.semantic_type !== 'bug_report') failures.push('recordBugReport did not create a bug_report document.');
 if (candidates.length === 0) failures.push('Candidate extraction returned no candidates.');
 if (commitResult.committed.length === 0) failures.push('Candidate commit returned no committed records.');
 if (artifactResult.committed.length === 0) failures.push('Session artifact recording returned no committed records.');
@@ -94,7 +141,7 @@ if (!fs.existsSync(hookStart.context_path)) failures.push('hook-start did not wr
 if (hookEnd.candidates === 0) failures.push('hook-end generated no candidates.');
 if (hookCommit.committed === 0) failures.push('hook-commit committed no candidates.');
 
-console.log(JSON.stringify({ tempRoot, context, memoryResults, docResults, candidates, commitResult, artifactResult, hookStart, hookEnd, hookCommit, failures }, null, 2));
+console.log(JSON.stringify({ tempRoot, context, memoryResults, docResults, hyphenDocResults, hyphenMemoryResults, storageInfo, movedDoc, migratedFile, bugReport, candidates, commitResult, artifactResult, hookStart, hookEnd, hookCommit, failures }, null, 2));
 db.close();
 fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 if (failures.length > 0) process.exit(1);
