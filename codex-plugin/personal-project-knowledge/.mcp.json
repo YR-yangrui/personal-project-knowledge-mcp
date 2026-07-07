@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "personal-project-knowledge": {
+      "command": "C:/Program Files/nodejs/node.exe",
+      "args": [
+        "E:/Projects/personal-project-knowledge-mcp/dist/index.js"
+      ],
+      "startup_timeout_sec": 120
+    }
+  }
+}

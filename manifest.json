@@ -1,0 +1,102 @@
+{
+  "manifest_version": "0.3",
+  "name": "Personal Project Knowledge MCP",
+  "version": "0.1.0",
+  "description": "Personal local knowledge and memory MCP - manage auto-loaded memories, Markdown documents, decisions, requirement changes, preferences, and project notes.",
+  "author": {
+    "name": "personal"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "dist/index.js"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "get_usage_guide",
+      "description": "Read default server instructions for using this MCP as personal memory and document management."
+    },
+    {
+      "name": "build_context",
+      "description": "Build project context: short memories as full content, long memories and documents as indexes."
+    },
+    {
+      "name": "list_loaded_memory",
+      "description": "List active short memories and long memory indexes that auto-load for a project."
+    },
+    {
+      "name": "search_memory",
+      "description": "Search memory records by full text and metadata."
+    },
+    {
+      "name": "get_memory",
+      "description": "Read a memory record by id."
+    },
+    {
+      "name": "write_memory",
+      "description": "Write short memory or long memory index for preferences, rules, gotchas, decisions, and project notes."
+    },
+    {
+      "name": "update_memory",
+      "description": "Patch an existing memory record."
+    },
+    {
+      "name": "deprecate_memory",
+      "description": "Soft-deprecate an outdated memory and optionally point to a replacement."
+    },
+    {
+      "name": "list_projects",
+      "description": "List projects that have indexed memories or documents."
+    },
+    {
+      "name": "search_docs",
+      "description": "Search indexed Markdown documents and return metadata instead of full body."
+    },
+    {
+      "name": "read_doc",
+      "description": "Read Markdown document body by data-root-relative path."
+    },
+    {
+      "name": "write_doc",
+      "description": "Write and index a Markdown document."
+    },
+    {
+      "name": "patch_doc",
+      "description": "Replace text in an indexed Markdown document."
+    },
+    {
+      "name": "create_or_update_doc_index",
+      "description": "Create or update a long memory index for an indexed document."
+    },
+    {
+      "name": "promote_doc_to_long_memory",
+      "description": "Promote a document to auto-loaded long memory index."
+    },
+    {
+      "name": "demote_memory_to_doc",
+      "description": "Move an overlong memory body into a document and keep a long memory index."
+    },
+    {
+      "name": "extract_memory_candidates",
+      "description": "Extract heuristic memory candidates from conversation text without writing them."
+    },
+    {
+      "name": "commit_memory_candidates",
+      "description": "Commit extracted memory candidates with confirmation guardrails."
+    },
+    {
+      "name": "record_session_artifacts",
+      "description": "Record session documents and memory candidates; documents become long indexes."
+    },
+    {
+      "name": "backup_now",
+      "description": "Create a timestamped backup of SQLite database files."
+    }
+  ]
+}

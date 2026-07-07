@@ -1,0 +1,54 @@
+{
+  "name": "personal-project-knowledge-mcp",
+  "version": "0.1.0",
+  "description": "Personal local AI memory/document MCP server.",
+  "type": "module",
+  "bin": {
+    "personal-project-knowledge-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "verify": "tsx src/scripts/verify.ts",
+    "verify:web": "tsx src/scripts/verify-web.ts",
+    "hook:load": "tsx src/scripts/hook-load.ts",
+    "hook:extract": "tsx src/scripts/hook-extract.ts",
+    "hook:start": "tsx src/scripts/hook-start.ts",
+    "hook:end": "tsx src/scripts/hook-end.ts",
+    "hook:commit": "tsx src/scripts/hook-commit.ts",
+    "backup": "tsx src/scripts/backup.ts",
+    "web": "tsx src/web.ts",
+    "web:dist": "node dist/web.js",
+    "package:win": "powershell -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "knowledge-base",
+    "markdown",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fast-glob": "^3.3.3",
+    "gray-matter": "^4.0.3",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}

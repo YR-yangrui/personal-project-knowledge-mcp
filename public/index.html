@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Personal Project Knowledge MCP</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Local Memory Console</p>
+      <h1>personal-project-knowledge-mcp</h1>
+      <p id="health">连接中...</p>
+    </div>
+    <button id="backupBtn">立即备份</button>
+  </header>
+
+  <main class="grid">
+    <section class="panel span-2">
+      <h2>自动载入上下文</h2>
+      <div class="row">
+        <input id="projectInput" placeholder="ProjectN" value="ProjectN" />
+        <input id="queryInput" placeholder="查询词，例如：订单系统" />
+        <button id="loadContextBtn">构建上下文</button>
+      </div>
+      <pre id="contextOut" class="output"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>记忆搜索</h2>
+      <div class="row">
+        <input id="memoryQuery" placeholder="搜索记忆" />
+        <button id="searchMemoryBtn">搜索</button>
+      </div>
+      <div id="memoryList" class="list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>新增记忆</h2>
+      <input id="memTitle" placeholder="标题" />
+      <textarea id="memContent" placeholder="短记忆正文；长索引请填写摘要"></textarea>
+      <div class="row">
+        <select id="memLoad">
+          <option value="short">short</option>
+          <option value="long_index">long_index</option>
+        </select>
+        <select id="memType">
+          <option value="preference">preference</option>
+          <option value="gotcha">gotcha</option>
+          <option value="project_rule">project_rule</option>
+          <option value="decision">decision</option>
+          <option value="requirement_change">requirement_change</option>
+          <option value="doc_index">doc_index</option>
+        </select>
+      </div>
+      <button id="writeMemoryBtn">写入记忆</button>
+    </section>
+
+    <section class="panel">
+      <h2>文档搜索</h2>
+      <div class="row">
+        <input id="docQuery" placeholder="搜索文档" />
+        <button id="searchDocsBtn">搜索</button>
+      </div>
+      <div id="docList" class="list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>新增文档</h2>
+      <input id="docPath" placeholder="docs/projects/ProjectN/module-notes/foo.md" />
+      <input id="docTitle" placeholder="文档标题" />
+      <textarea id="docContent" placeholder="# Markdown 正文"></textarea>
+      <button id="writeDocBtn">写入文档并建立索引</button>
+    </section>
+
+    <section class="panel">
+      <h2>高频统计</h2>
+      <button id="statsBtn">刷新统计</button>
+      <div id="statsList" class="chips"></div>
+      <h3>高频候选</h3>
+      <div id="freqCandidates" class="list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>导入 Markdown 目录</h2>
+      <input id="importDir" placeholder="C:\claude\ProjectN\docs" />
+      <div class="row">
+        <input id="importPattern" value="**/*.md" />
+        <label><input id="importOverwrite" type="checkbox" checked /> 覆盖同路径</label>
+        <label><input id="importIndex" type="checkbox" checked /> 创建 long_index</label>
+      </div>
+      <button id="importBtn">开始导入</button>
+      <pre id="importOut" class="output"></pre>
+    </section>
+
+    <section class="panel span-2">
+      <h2>候选提取</h2>
+      <textarea id="conversationText" placeholder="粘贴对话摘要，提取 preference / gotcha / decision 等候选"></textarea>
+      <button id="extractBtn">提取候选</button>
+      <div id="candidateList" class="list"></div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# Local runtime data should live in %USERPROFILE%\.personal-project-knowledge-mcp by default.
+.personal-project-knowledge-mcp/
+data/
+backups/
+
+# Local packaging outputs.
+release/
+*.zip
+

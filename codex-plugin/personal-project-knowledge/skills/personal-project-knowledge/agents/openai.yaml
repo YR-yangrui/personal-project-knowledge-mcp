@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal Project Knowledge"
+  short_description: "Use local project memories and Markdown docs."
+  default_prompt: "Use personal project knowledge for memory and documentation management."
