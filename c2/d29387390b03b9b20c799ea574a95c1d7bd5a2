@@ -1,0 +1,70 @@
+public/app.js
+  s_dd01f2d4cab624::t_8f453d8f842153 38-42,129-172,187
+skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_540cb6e585368f 30-31
+src/types.ts
+  s_dd01f2d4cab624::t_21cab061fd4ab9 48-67
+plugin/personal-project-knowledge/manifest.json
+  s_dd01f2d4cab624::t_5e5b2b756571e9 32-34,42,54,56,60-61,65
+  s_dd01f2d4cab624::t_a0b19fa46bbe2d 31
+src/paths.ts
+  s_dd01f2d4cab624::t_44ebd4b751f2b7 27
+public/index.html
+  s_dd01f2d4cab624::t_065ec410cf2997 30-36,104-135
+  s_dd01f2d4cab624::t_9a09cf798e95ff 136
+src/web.ts
+  s_dd01f2d4cab624::t_b3858e9cb5066c 31-34,80-83,88-91,114-132
+  s_dd01f2d4cab624::t_1e8c60f551621f 133
+src/index.ts
+  s_dd01f2d4cab624::t_c009ceea9fc1ca 11,45-51,150,169-173,179-187,203-265,339-344
+  s_dd01f2d4cab624::t_0560da3bee4e8b 345-346
+skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_d38426dadff4d3 26,28,30,34-38,44,57-58
+manifest.json
+  s_dd01f2d4cab624::t_e75c1884c8f17d 32-35,50-53,98-101,106-109,122-129,142-145
+src/markdown.ts
+  s_dd01f2d4cab624::t_169947b6065636 46
+docs/API.md
+  s_dd01f2d4cab624::t_eb64c052238f5b 14,34,36,38,42-43,52,83,96,105,107,112-113
+src/scripts/verify.ts
+  s_dd01f2d4cab624::t_60f0ec91f8b573 11,45-82,128-136,144
+src/usage-guide.ts
+  s_dd01f2d4cab624::t_5dcf1bd37c2f3a 26-30,46-47
+src/scripts/verify-web.ts
+  s_dd01f2d4cab624::t_84d89206dce363 32,53-83,87
+README.md
+  s_dd01f2d4cab624::t_beb74d5c7fe66a 134,139-141,147,165,230,236-238
+src/repository.ts
+  s_dd01f2d4cab624::t_4be9fb2fe93839 6,9,87-97,99-120,187-189,213-216,292,320,348-349,354,364,401,452-523
+  s_dd01f2d4cab624::t_0f5a6df7b366bb 98
+  s_dd01f2d4cab624::t_be9ad2842a3d78 75-83,247,393
+  s_dd01f2d4cab624::t_264936bdac2e43 524
+src/service.ts
+  s_dd01f2d4cab624::t_41a33946f84c19 5-6,179-233
+  s_dd01f2d4cab624::t_9c570a0d51ab6d 234
+docs/IMPORT.md
+  s_dd01f2d4cab624::t_b26213538068bc 1,3,42-76,91-102,104-105
+src/stats.ts
+  s_dd01f2d4cab624::t_1e56254f9f90e6 20-33,93-100,109-143
+  s_dd01f2d4cab624::t_e195fb272ce59f 144-145
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_69fcf7138ebeca 30-31
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_5ed5d4201bb6c4 26,28,30,34-38,44,57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c2d29387390b03b9b20c799ea574a95c1d7bd5a2",
+  "prompts": {},
+  "sessions": {
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
