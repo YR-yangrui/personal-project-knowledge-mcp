@@ -1,0 +1,19 @@
+AGENTS.md
+  s_c52ae2f53c1225::t_4cff29afcb95cd 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e6f0111a399a5f7bdba2e41242f3f7a320b80dec",
+  "prompts": {},
+  "sessions": {
+    "s_c52ae2f53c1225": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3ff7-ca49-7d22-ae50-6728be3a2573",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
