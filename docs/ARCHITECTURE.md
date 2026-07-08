@@ -11,6 +11,8 @@
 - **长记忆索引**只自动载入标题、摘要、路径，不代表正文已读。
 - **文档**默认不自动载入正文，只能通过搜索或 `read_doc` 按需读取。
 - 复杂内容应沉淀为 Markdown 文档，再生成 `long_index`。
+- 短/长记忆边界由 `memorySizing` 配置控制，过长短记忆可自动降级为 `document + long_index`，足够短且无关联文档的 `long_index` 可自动转回 `short`。
+- 语义分类由 `semanticTypes` 配置控制；分类可以声明“默认加载”或“仅搜索”。例如 `bugfix` 默认可搜索但不加载索引。
 
 ---
 
@@ -37,6 +39,7 @@
 | MCP 服务 | `src/index.ts` | stdio MCP tools/resources |
 | Web 服务 | `src/web.ts` | 本地 Web UI API |
 | 通用 Skill | `skills/personal-project-knowledge/` | 可移植客户端路由指南 |
+| 配置 Skill | `skills/personal-project-knowledge-config/` | 指导修改 config.yaml、短长转换阈值和语义分类 |
 | 通用 Plugin | `plugin/personal-project-knowledge/` | 可移植插件清单 |
 | Codex Adapter | `codex-plugin/personal-project-knowledge/` | Codex 专用封装，使用通用 skill |
 | 会话文件流脚本 | `src/scripts/hook-*.ts` | 手动生成上下文、候选提取与候选提交 |
@@ -56,6 +59,19 @@ KnowledgeRepository
   ├─ SQLite metadata + FTS
   └─ Markdown files
 ```
+
+写入或更新 memory 时，`KnowledgeRepository` 会根据 `memorySizing` 统一判断：
+
+- `short` 内容超过 `shortMaxChars` 且启用 `autoDemoteOverlongShort`：写入 Markdown 文档，并把 memory 保存为 `long_index`。
+- `long_index` 没有 `related_doc`，且内容/摘要不超过 `longToShortMaxChars`，并启用 `autoPromoteShortLongIndex`：保存为 `short`。
+- document-backed `doc_index` 不参与自动转短，避免丢失“正文需按需读取”的边界。
+
+分类加载策略：
+
+- `semanticTypes.<type>.auto_load_index=true` 且 `show_in_context=true`：该分类的 long_index 默认进入启动上下文。
+- `auto_load_index=false`：该分类不占启动上下文，但仍可通过搜索工具和 Web UI 分类搜索返回。
+- `build_context` 会返回 `semantic_type_catalog`，让 AI 启动时知道有哪些分类、哪些默认加载、哪些需要主动搜索。
+- 文档索引 memory 使用原文档 `semantic_type`，`source=doc_index` 表示它是文档入口。
 
 ---
 

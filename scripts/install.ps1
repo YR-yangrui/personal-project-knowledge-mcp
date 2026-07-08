@@ -44,11 +44,26 @@ if (-not (Test-Path -LiteralPath $ConfigPath)) {
   $config = @"
 dataRoot: "$escapedDataRoot"
 maxShortMemoryChars: 500
+memorySizing:
+  shortMaxChars: 500
+  longToShortMaxChars: 300
+  autoDemoteOverlongShort: true
+  autoPromoteShortLongIndex: true
+  demoteDocumentDir: archives
 budgets:
   globalShortTokens: 800
   projectShortTokens: 1200
   longIndexTokens: 2000
   relatedTopK: 5
+semanticTypes:
+  bugfix:
+    default_load_level: long_index
+    default_scope: project
+    description: "Bug 修复记录；默认仅搜索，不占启动上下文。"
+    searchable: true
+    auto_load_index: false
+    show_in_context: false
+    show_in_webui: true
 "@
   [System.IO.File]::WriteAllText($ConfigPath, $config, $Utf8NoBom)
   Write-Host "Created config: $ConfigPath"

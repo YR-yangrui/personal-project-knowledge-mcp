@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal Knowledge Config"
+  short_description: "Guide configuration updates for personal-project-knowledge-mcp."
+  default_prompt: "Help me update the personal-project-knowledge-mcp configuration safely."

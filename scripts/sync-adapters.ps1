@@ -1,22 +1,22 @@
 # Sync generated client adapters from portable plugin/skill sources.
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$GenericSkill = Join-Path $Root "skills\personal-project-knowledge"
-$CodexSkill = Join-Path $Root "codex-plugin\personal-project-knowledge\skills\personal-project-knowledge"
+$GenericSkills = Join-Path $Root "skills"
+$CodexSkills = Join-Path $Root "codex-plugin\personal-project-knowledge\skills"
 
-if (-not (Test-Path -LiteralPath $GenericSkill)) {
-  throw "Generic skill source not found: $GenericSkill"
+if (-not (Test-Path -LiteralPath $GenericSkills)) {
+  throw "Generic skills source not found: $GenericSkills"
 }
-if (-not (Test-Path -LiteralPath $CodexSkill)) {
-  New-Item -ItemType Directory -Force -Path $CodexSkill | Out-Null
-}
+New-Item -ItemType Directory -Force -Path $CodexSkills | Out-Null
 
-# Keep Codex UI metadata if present, but make the actual workflow files portable.
-Copy-Item -LiteralPath (Join-Path $GenericSkill "SKILL.md") -Destination (Join-Path $CodexSkill "SKILL.md") -Force
-$GenericRefs = Join-Path $GenericSkill "references"
-$CodexRefs = Join-Path $CodexSkill "references"
-if (Test-Path -LiteralPath $CodexRefs) {
-  Remove-Item -LiteralPath $CodexRefs -Recurse -Force
+# Keep all portable skill folders available to Codex adapter.
+foreach ($skill in Get-ChildItem -LiteralPath $GenericSkills -Directory) {
+  $targetSkill = Join-Path $CodexSkills $skill.Name
+  New-Item -ItemType Directory -Force -Path $targetSkill | Out-Null
+  # Copy portable skill files into the adapter while preserving adapter-only
+  # metadata such as agents/openai.yaml.
+  foreach ($item in Get-ChildItem -LiteralPath $skill.FullName -Force) {
+    Copy-Item -LiteralPath $item.FullName -Destination $targetSkill -Recurse -Force
+  }
 }
-Copy-Item -LiteralPath $GenericRefs -Destination $CodexRefs -Recurse -Force
-Write-Host "Synced generic skill into Codex adapter."
+Write-Host "Synced generic skills into Codex adapter."

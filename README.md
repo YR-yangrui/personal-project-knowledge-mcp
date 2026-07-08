@@ -36,6 +36,49 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 $env:PPKM_DATA_ROOT='D:\AIKnowledge'
 ```
 
+## 配置与短长记忆自动转换
+
+运行配置文件位于：
+
+```text
+%USERPROFILE%\.personal-project-knowledge-mcp\config.yaml
+```
+
+新配置优先使用 `memorySizing` 控制短记忆和长记忆索引的自动转换：
+
+```yaml
+memorySizing:
+  shortMaxChars: 500
+  longToShortMaxChars: 300
+  autoDemoteOverlongShort: true
+  autoPromoteShortLongIndex: true
+  demoteDocumentDir: archives
+```
+
+- `shortMaxChars`：短记忆最大正文长度。
+- `autoDemoteOverlongShort`：短记忆过长时自动写成 Markdown 文档，并把 memory 改为 `long_index`。
+- `longToShortMaxChars`：无关联文档的 `long_index` 内容足够短时，可自动转回 `short`。
+- `autoPromoteShortLongIndex`：启用无文档长索引转短记忆。
+- `demoteDocumentDir`：自动降级生成文档的目录。
+
+旧配置中的 `maxShortMemoryChars` 仍兼容；新修改建议使用 `memorySizing.shortMaxChars`。
+
+需要调整配置或新增语义分类时，可使用 skill `personal-project-knowledge-config`。它会按存储、短长阈值、上下文预算、语义类型等分类逐步引导修改。
+
+语义分类支持配置搜索与默认加载策略。像 `bugfix` 这类记录推荐保存为文档并允许搜索，但默认不加载索引：
+
+```yaml
+semanticTypes:
+  bugfix:
+    default_load_level: long_index
+    default_scope: project
+    description: "Bug 修复记录；默认仅搜索，不占启动上下文。"
+    searchable: true
+    auto_load_index: false
+    show_in_context: false
+    show_in_webui: true
+```
+
 ## 初始化种子数据
 
 ```powershell
@@ -70,6 +113,7 @@ node dist/index.js
 - `manifest.json`：包级 MCP plugin 清单。
 - `plugin/personal-project-knowledge/manifest.json`：可移植 plugin 描述。
 - `skills/personal-project-knowledge/SKILL.md`：可移植 skill，适用于支持 skill/指令包的 AI 客户端。
+- `skills/personal-project-knowledge-config/SKILL.md`：配置管理 skill，指导修改 `config.yaml`、短长转换阈值和自定义语义分类。
 
 ## Codex 适配安装
 
@@ -133,6 +177,7 @@ powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveData -Forc
 - `get_usage_guide`：读取默认使用指南，说明什么时候优先使用本 MCP。
 - `get_storage_info`：查看 dataRoot、文档目录、记忆目录、备份目录和默认导入路径。
 - `build_context`：构建自动载入上下文。
+- `list_semantic_types`：列出语义分类、默认加载策略、搜索策略和记录数量。
 - `list_loaded_memory`：查看当前项目会自动载入的短记忆和长索引。
 - `write_memory`：写短记忆或长记忆索引。
 - `search_memory` / `get_memory`：搜索和读取记忆。
@@ -232,6 +277,8 @@ Web UI 首版支持：
 - 搜索、新增、废弃记忆。
 - 搜索、读取、新增文档并创建 `long_index`。
 - 查看高频统计和高频候选。
+- 按 `semantic_type` 分类浏览记忆和文档，并标记“默认加载 / 仅搜索”。
+- 分类内搜索支持索引、命中片段和全文返回模式。
 - 导入现有 Markdown 目录。
 - 迁移单个 Markdown 文件。
 - 移动已入库文档并同步索引。

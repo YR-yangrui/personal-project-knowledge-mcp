@@ -22,6 +22,11 @@
       "name": "personal-project-knowledge",
       "path": "skills/personal-project-knowledge",
       "description": "Portable skill for routing memory, document, decision, and requirement-change tasks to this MCP."
+    },
+    {
+      "name": "personal-project-knowledge-config",
+      "path": "skills/personal-project-knowledge-config",
+      "description": "Skill for safely changing config.yaml, memory sizing thresholds, context budgets, and custom semantic types/categories."
     }
   ],
   "resources": [
@@ -40,6 +45,10 @@
     {
       "uri": "memory://loaded/project/{project}",
       "description": "Structured JSON of project short memories and long memory indexes."
+    },
+    {
+      "uri": "memory://semantic-types",
+      "description": "Configured semantic categories and their default search/load behavior."
     }
   ],
   "tools": [
@@ -82,6 +91,10 @@
     {
       "name": "list_projects",
       "description": "List projects that have indexed memories or documents."
+    },
+    {
+      "name": "list_semantic_types",
+      "description": "List configured semantic types/categories with search/default-load policies and memory/document counts."
     },
     {
       "name": "search_docs",

@@ -2,6 +2,7 @@ param(
   [string]$CodexConfig = "$env:USERPROFILE\.codex\config.toml",
   [string]$ServerName = "personal-project-knowledge",
   [switch]$SkipBuild,
+  [switch]$SkipNpmInstall,
   [switch]$SkipPlugin
 )
 
@@ -10,7 +11,7 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $DistIndex = Join-Path $Root "dist\index.js"
-$GenericSkillSource = Join-Path $Root "skills\personal-project-knowledge"
+$GenericSkillsSource = Join-Path $Root "skills"
 $CodexPluginSource = Join-Path $Root "codex-plugin\personal-project-knowledge"
 $PluginDest = Join-Path $env:USERPROFILE "plugins\personal-project-knowledge"
 $SkillDest = Join-Path $env:USERPROFILE ".codex\skills\personal-project-knowledge"
@@ -20,7 +21,13 @@ $Node = (Get-Command node -ErrorAction Stop).Source
 Write-Host "[1/5] Preparing project..."
 Push-Location $Root
 try {
-  npm install
+  if (-not $SkipNpmInstall) {
+    npm install
+  }
+  else {
+    Write-Host "npm install skipped."
+  }
+
   if (-not $SkipBuild) {
     Write-Host "[2/5] Building..."
     npm run build
@@ -86,14 +93,19 @@ if (-not $SkipPlugin -and (Test-Path -LiteralPath $CodexPluginSource)) {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $PluginDest) | Out-Null
   Copy-Item -LiteralPath $CodexPluginSource -Destination $PluginDest -Recurse -Force
 
-  if (Test-Path -LiteralPath $GenericSkillSource) {
-    $adapterSkill = Join-Path $PluginDest "skills\personal-project-knowledge"
-    if (Test-Path -LiteralPath $adapterSkill) {
-      Remove-Item -LiteralPath $adapterSkill -Recurse -Force
-    }
-    # The portable skill is the source of truth. The Codex plugin only adapts
+  if (Test-Path -LiteralPath $GenericSkillsSource) {
+    $adapterSkills = Join-Path $PluginDest "skills"
+    New-Item -ItemType Directory -Force -Path $adapterSkills | Out-Null
+    # Portable skills are the source of truth. The Codex plugin only adapts
     # placement/manifest shape for Codex without changing skill behavior.
-    Copy-Item -LiteralPath $GenericSkillSource -Destination $adapterSkill -Recurse -Force
+    # Merge instead of clearing so adapter-only metadata is not deleted.
+    foreach ($skill in Get-ChildItem -LiteralPath $GenericSkillsSource -Directory) {
+      $targetSkill = Join-Path $adapterSkills $skill.Name
+      New-Item -ItemType Directory -Force -Path $targetSkill | Out-Null
+      foreach ($item in Get-ChildItem -LiteralPath $skill.FullName -Force) {
+        Copy-Item -LiteralPath $item.FullName -Destination $targetSkill -Recurse -Force
+      }
+    }
   }
 
   $installedMcp = Join-Path $PluginDest ".mcp.json"
@@ -110,13 +122,16 @@ if (-not $SkipPlugin -and (Test-Path -LiteralPath $CodexPluginSource)) {
   # current install path so packaged copies do not keep a stale developer path.
   [System.IO.File]::WriteAllText($installedMcp, ($installedMcpConfig | ConvertTo-Json -Depth 10), $Utf8NoBom)
 
-  $skillSource = Join-Path $PluginDest "skills\personal-project-knowledge"
-  if (Test-Path -LiteralPath $skillSource) {
-    if (Test-Path -LiteralPath $SkillDest) {
-      Remove-Item -LiteralPath $SkillDest -Recurse -Force
-    }
+  $skillSourceRoot = Join-Path $PluginDest "skills"
+  if (Test-Path -LiteralPath $skillSourceRoot) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $SkillDest) | Out-Null
-    Copy-Item -LiteralPath $skillSource -Destination $SkillDest -Recurse -Force
+    foreach ($skillSource in Get-ChildItem -LiteralPath $skillSourceRoot -Directory) {
+      $targetSkill = Join-Path (Split-Path -Parent $SkillDest) $skillSource.Name
+      if (Test-Path -LiteralPath $targetSkill) {
+        Remove-Item -LiteralPath $targetSkill -Recurse -Force
+      }
+      Copy-Item -LiteralPath $skillSource.FullName -Destination $targetSkill -Recurse -Force
+    }
   }
 
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $MarketplacePath) | Out-Null
@@ -155,6 +170,6 @@ Write-Host "Args: $entryToml"
 Write-Host "SessionStart hook: removed/not installed"
 if (-not $SkipPlugin) {
   Write-Host "Plugin: $PluginDest"
-  Write-Host "Skill: $SkillDest"
+  Write-Host "Skills: $(Split-Path -Parent $SkillDest)"
 }
 Write-Host "Restart Codex to load the MCP server."

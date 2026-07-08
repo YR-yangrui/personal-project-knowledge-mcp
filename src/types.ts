@@ -113,6 +113,19 @@ export interface SearchDocsInput {
   tags?: string[];
   status?: Status;
   limit?: number;
+  mode?: 'index' | 'snippet' | 'full';
+  snippet_radius?: number;
+}
+
+export interface SearchDocResult extends DocumentRecord {
+  snippet?: string;
+  content?: string;
+}
+
+export interface SemanticTypeCount {
+  semantic_type: string;
+  memories: number;
+  documents: number;
 }
 
 export interface MemoryCandidate {

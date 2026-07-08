@@ -3,10 +3,10 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { createId, nowIso } from './ids.js';
-import { ensureDir, memoryMarkdownPath, resolveDataPath, toRelativeDataPath } from './paths.js';
+import { ensureDir, memoryMarkdownPath, resolveDataPath, safeSegment, toRelativeDataPath } from './paths.js';
 import { readMarkdownContent, writeDocumentMarkdown, writeMemoryMarkdown } from './markdown.js';
 import type { AppConfig } from './config.js';
-import type { DocumentLocation, DocumentRecord, MemoryRecord, SearchDocsInput, SearchMemoryInput, StorageInfo, WriteDocumentInput, WriteMemoryInput } from './types.js';
+import type { DocumentLocation, DocumentRecord, MemoryRecord, SearchDocResult, SearchDocsInput, SearchMemoryInput, SemanticTypeCount, StorageInfo, WriteDocumentInput, WriteMemoryInput } from './types.js';
 
 function json(value: unknown): string {
   return JSON.stringify(value ?? []);
@@ -119,18 +119,11 @@ export class KnowledgeRepository {
   }
 
   writeMemory(input: WriteMemoryInput): MemoryRecord {
-    if (input.load_level === 'short' && (input.content?.length ?? 0) > this.config.maxShortMemoryChars) {
-      throw new Error(`Short memory is too long (${input.content?.length} chars). Demote it to a document + long_index.`);
-    }
-    if (input.load_level === 'long_index' && !input.brief) {
-      throw new Error('long_index memory requires brief so AI can see the index without reading the body.');
-    }
-
     const id = createId('mem');
     const now = nowIso();
     const project = input.project ?? 'global';
     const scope = input.scope ?? (project === 'global' ? 'global' : 'project');
-    const record: MemoryRecord = {
+    const record = this.normalizeMemorySizing({
       id,
       project,
       scope,
@@ -153,7 +146,7 @@ export class KnowledgeRepository {
       related_files: input.related_files ?? [],
       supersedes: [],
       superseded_by: []
-    };
+    });
     const mdPath = memoryMarkdownPath(this.config.dataRoot, project, record.load_level, id, record.title);
     writeMemoryMarkdown(mdPath, record);
     const relativeMdPath = toRelativeDataPath(this.config.dataRoot, mdPath);
@@ -194,27 +187,26 @@ export class KnowledgeRepository {
       related_files: patch.related_files ?? current.related_files,
       updated_at: nowIso()
     } as MemoryRecord;
-    if (updated.load_level === 'short' && (updated.content?.length ?? 0) > this.config.maxShortMemoryChars) {
-      throw new Error(`Short memory is too long (${updated.content?.length} chars). Demote it to a document + long_index.`);
-    }
+    const normalized = this.normalizeMemorySizing(updated);
+    const storedMarkdownPath = this.nextMemoryMarkdownPath(currentRow, current, normalized);
+    const relativeMarkdownPath = toRelativeDataPath(this.config.dataRoot, storedMarkdownPath);
     this.db.prepare(`UPDATE memories SET
       project=@project, scope=@scope, load_level=@load_level, semantic_type=@semantic_type, title=@title,
       brief=@brief, content=@content, tags=@tags, source=@source, confidence=@confidence, status=@status,
       priority=@priority, updated_at=@updated_at, expires_at=@expires_at, last_verified_commit=@last_verified_commit,
-      related_doc=@related_doc, related_files=@related_files, supersedes=@supersedes, superseded_by=@superseded_by
+      related_doc=@related_doc, related_files=@related_files, supersedes=@supersedes, superseded_by=@superseded_by,
+      markdown_path=@markdown_path
       WHERE id=@id`).run({
-        ...updated,
-        tags: json(updated.tags),
-        related_files: json(updated.related_files),
-        supersedes: json(updated.supersedes),
-        superseded_by: json(updated.superseded_by)
+        ...normalized,
+        tags: json(normalized.tags),
+        related_files: json(normalized.related_files),
+        supersedes: json(normalized.supersedes),
+        superseded_by: json(normalized.superseded_by),
+        markdown_path: relativeMarkdownPath
       });
-    this.upsertMemoryFts(updated);
-    const storedMarkdownPath = typeof currentRow.markdown_path === 'string' && currentRow.markdown_path
-      ? resolveDataPath(this.config.dataRoot, currentRow.markdown_path)
-      : memoryMarkdownPath(this.config.dataRoot, updated.project, updated.load_level, updated.id, updated.title);
-    writeMemoryMarkdown(storedMarkdownPath, updated);
-    return updated;
+    this.upsertMemoryFts(normalized);
+    writeMemoryMarkdown(storedMarkdownPath, normalized);
+    return normalized;
   }
 
   deprecateMemory(id: string, reason?: string, supersededBy?: string): MemoryRecord {
@@ -246,7 +238,11 @@ export class KnowledgeRepository {
     if (input.query?.trim()) {
       params.query = ftsMatchQuery(input.query);
       const sql = `SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.id ${where ? `${where} AND` : 'WHERE'} memories_fts MATCH @query ORDER BY bm25(memories_fts), m.updated_at DESC LIMIT @limit`;
-      return this.db.prepare(sql).all(params).map(mapMemory);
+      const results = this.db.prepare(sql).all(params).map(mapMemory);
+      if (results.length > 0) return results;
+      params.like = `%${input.query.trim()}%`;
+      const likeSql = `SELECT m.* FROM memories m ${where ? `${where} AND` : 'WHERE'} (m.title LIKE @like OR m.brief LIKE @like OR m.content LIKE @like OR m.tags LIKE @like) ORDER BY m.updated_at DESC LIMIT @limit`;
+      return this.db.prepare(likeSql).all(params).map(mapMemory);
     }
     const sql = `SELECT m.* FROM memories m ${where} ORDER BY m.updated_at DESC LIMIT @limit`;
     return this.db.prepare(sql).all(params).map(mapMemory);
@@ -264,7 +260,7 @@ export class KnowledgeRepository {
         updated_at DESC`).all({ project: project ?? '', now }).map(mapMemory);
     return {
       short: rows.filter((r) => r.load_level === 'short'),
-      longIndex: rows.filter((r) => r.load_level === 'long_index')
+      longIndex: rows.filter((r) => r.load_level === 'long_index' && this.shouldLoadIndexInContext(r))
     };
   }
 
@@ -284,6 +280,25 @@ export class KnowledgeRepository {
     return this.db.prepare('SELECT * FROM documents WHERE status = ? ORDER BY updated_at DESC LIMIT ?')
       .all('active', Math.min(limit, 1000))
       .map(mapDocument);
+  }
+
+  semanticTypeCounts(project?: string): SemanticTypeCount[] {
+    const params: Record<string, unknown> = {};
+    const memoryWhere = project ? "WHERE status = 'active' AND (project = 'global' OR project = @project)" : "WHERE status = 'active'";
+    const documentWhere = project ? "WHERE status = 'active' AND project = @project" : "WHERE status = 'active'";
+    if (project) params.project = project;
+    const memoryRows = this.db.prepare(`SELECT semantic_type, COUNT(*) AS count FROM memories ${memoryWhere} GROUP BY semantic_type`).all(params) as Array<{ semantic_type: string; count: number }>;
+    const documentRows = this.db.prepare(`SELECT semantic_type, COUNT(*) AS count FROM documents ${documentWhere} GROUP BY semantic_type`).all(params) as Array<{ semantic_type: string; count: number }>;
+    const map = new Map<string, SemanticTypeCount>();
+    for (const row of memoryRows) {
+      map.set(row.semantic_type, { semantic_type: row.semantic_type, memories: row.count, documents: 0 });
+    }
+    for (const row of documentRows) {
+      const current = map.get(row.semantic_type) ?? { semantic_type: row.semantic_type, memories: 0, documents: 0 };
+      current.documents = row.count;
+      map.set(row.semantic_type, current);
+    }
+    return Array.from(map.values()).sort((a, b) => a.semantic_type.localeCompare(b.semantic_type));
   }
 
   writeDocument(input: WriteDocumentInput): DocumentRecord {
@@ -375,7 +390,7 @@ export class KnowledgeRepository {
     return record;
   }
 
-  searchDocs(input: SearchDocsInput): DocumentRecord[] {
+  searchDocs(input: SearchDocsInput): SearchDocResult[] {
     const limit = Math.min(input.limit ?? 20, 100);
     const filters: string[] = [];
     const params: Record<string, unknown> = { limit };
@@ -392,9 +407,13 @@ export class KnowledgeRepository {
     if (input.query?.trim()) {
       params.query = ftsMatchQuery(input.query);
       const sql = `SELECT d.* FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} documents_fts MATCH @query ORDER BY bm25(documents_fts), d.updated_at DESC LIMIT @limit`;
-      return this.db.prepare(sql).all(params).map(mapDocument);
+      const results = this.db.prepare(sql).all(params).map(mapDocument);
+      if (results.length > 0) return this.enrichDocResults(results, input);
+      params.like = `%${input.query.trim()}%`;
+      const likeSql = `SELECT d.* FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} (d.title LIKE @like OR d.brief LIKE @like OR d.tags LIKE @like OR f.content LIKE @like) ORDER BY d.updated_at DESC LIMIT @limit`;
+      return this.enrichDocResults(this.db.prepare(likeSql).all(params).map(mapDocument), input);
     }
-    return this.db.prepare(`SELECT d.* FROM documents d ${where} ORDER BY d.updated_at DESC LIMIT @limit`).all(params).map(mapDocument);
+    return this.enrichDocResults(this.db.prepare(`SELECT d.* FROM documents d ${where} ORDER BY d.updated_at DESC LIMIT @limit`).all(params).map(mapDocument), input);
   }
 
   createOrUpdateDocIndex(docPath: string): MemoryRecord {
@@ -404,6 +423,7 @@ export class KnowledgeRepository {
     const doc = mapDocument(row);
     if (doc.index_memory_id) {
       return this.updateMemory(doc.index_memory_id, {
+        semantic_type: doc.semantic_type,
         title: doc.title,
         brief: doc.brief ?? `Document: ${doc.path}`,
         related_doc: doc.path,
@@ -414,7 +434,7 @@ export class KnowledgeRepository {
       project: doc.project,
       scope: 'project',
       load_level: 'long_index',
-      semantic_type: 'doc_index',
+      semantic_type: doc.semantic_type,
       title: doc.title,
       brief: doc.brief ?? `Document: ${doc.path}`,
       related_doc: doc.path,
@@ -429,10 +449,9 @@ export class KnowledgeRepository {
   demoteMemoryToDoc(memoryId: string): { document: DocumentRecord; memory: MemoryRecord } {
     const memory = this.getMemory(memoryId);
     if (!memory) throw new Error(`Memory not found: ${memoryId}`);
-    const docPath = `docs/projects/${memory.project}/archives/${memory.id}.md`;
-    const doc = this.writeDocument({
+    const doc = this.upsertDocument({
       project: memory.project,
-      path: docPath,
+      path: this.demotedMemoryDocumentPath(memory),
       semantic_type: `${memory.semantic_type}_doc`,
       title: memory.title,
       brief: memory.brief ?? memory.title,
@@ -446,6 +465,7 @@ export class KnowledgeRepository {
       content: null as any,
       related_doc: doc.path
     });
+    this.db.prepare('UPDATE documents SET index_memory_id = ? WHERE id = ?').run(updated.id, doc.id);
     return { document: doc, memory: updated };
   }
 
@@ -520,6 +540,123 @@ export class KnowledgeRepository {
 
   private normalizeDataPath(inputPath: string): string {
     return inputPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  }
+
+  private shouldLoadIndexInContext(memory: MemoryRecord): boolean {
+    const typeConfig = this.config.semanticTypes[memory.semantic_type];
+    if (!typeConfig) return true;
+    return typeConfig.show_in_context && typeConfig.auto_load_index;
+  }
+
+  private enrichDocResults(records: DocumentRecord[], input: SearchDocsInput): SearchDocResult[] {
+    const mode = input.mode ?? 'index';
+    if (mode === 'index') return records;
+    return records.map((record) => {
+      const absolutePath = resolveDataPath(this.config.dataRoot, record.path);
+      const parsed = fs.existsSync(absolutePath) ? readMarkdownContent(absolutePath) : { content: '' };
+      if (mode === 'full') {
+        return { ...record, content: parsed.content };
+      }
+      return { ...record, snippet: this.makeSnippet(parsed.content, input.query, input.snippet_radius) };
+    });
+  }
+
+  private makeSnippet(content: string, query?: string, radius = 80): string {
+    const compactRadius = Math.max(20, Math.min(radius, 400));
+    if (!content) return '';
+    const terms = query?.trim().split(/\s+/).filter(Boolean) ?? [];
+    const lower = content.toLowerCase();
+    const hit = terms
+      .map((term) => lower.indexOf(term.toLowerCase()))
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)[0] ?? 0;
+    const start = Math.max(0, hit - compactRadius);
+    const end = Math.min(content.length, hit + compactRadius);
+    const prefix = start > 0 ? '...' : '';
+    const suffix = end < content.length ? '...' : '';
+    return `${prefix}${content.slice(start, end)}${suffix}`.replace(/\s+/g, ' ').trim();
+  }
+
+  private nextMemoryMarkdownPath(currentRow: any, current: MemoryRecord, updated: MemoryRecord): string {
+    const currentPath = typeof currentRow.markdown_path === 'string' && currentRow.markdown_path
+      ? resolveDataPath(this.config.dataRoot, currentRow.markdown_path)
+      : undefined;
+    const shouldRepath = current.project !== updated.project
+      || current.load_level !== updated.load_level
+      || current.title !== updated.title;
+    if (!shouldRepath && currentPath) return currentPath;
+    const nextPath = memoryMarkdownPath(this.config.dataRoot, updated.project, updated.load_level, updated.id, updated.title);
+    // 转换 short/long_index 时 Markdown 目录也跟随 load_level，避免旧目录中留下仍被索引引用的 stale 文件。
+    if (currentPath && currentPath !== nextPath && fs.existsSync(currentPath)) {
+      fs.rmSync(currentPath);
+    }
+    return nextPath;
+  }
+
+  private normalizeMemorySizing(record: MemoryRecord): MemoryRecord {
+    const sizing = this.config.memorySizing;
+    const content = record.content ?? '';
+    if (record.load_level === 'short' && content.length > sizing.shortMaxChars) {
+      if (!sizing.autoDemoteOverlongShort) {
+        throw new Error(`Short memory is too long (${content.length} chars). Demote it to a document + long_index.`);
+      }
+      // 过长短记忆自动沉淀为文档，memory 只保留自动载入索引，避免长正文挤占会话上下文。
+      const doc = this.upsertDocument({
+        project: record.project,
+        path: this.demotedMemoryDocumentPath(record),
+        semantic_type: `${record.semantic_type}_doc`,
+        title: record.title,
+        brief: record.brief ?? this.briefFromContent(content, record.title),
+        content,
+        tags: record.tags,
+        last_verified_commit: record.last_verified_commit ?? undefined
+      });
+      this.db.prepare('UPDATE documents SET index_memory_id = ? WHERE id = ?').run(record.id, doc.id);
+      return {
+        ...record,
+        load_level: 'long_index',
+        brief: record.brief ?? this.briefFromContent(content, record.title),
+        content: null,
+        related_doc: doc.path
+      };
+    }
+
+    if (this.shouldPromoteLongIndexToShort(record)) {
+      return {
+        ...record,
+        load_level: 'short',
+        content: record.content ?? record.brief ?? '',
+        related_doc: null
+      };
+    }
+
+    if (record.load_level === 'long_index' && !record.brief) {
+      throw new Error('long_index memory requires brief so AI can see the index without reading the body.');
+    }
+    return record;
+  }
+
+  private shouldPromoteLongIndexToShort(record: MemoryRecord): boolean {
+    if (!this.config.memorySizing.autoPromoteShortLongIndex) return false;
+    if (record.load_level !== 'long_index') return false;
+    if (record.related_doc) return false;
+    if (record.semantic_type === 'doc_index') return false;
+    const candidateContent = record.content ?? record.brief ?? '';
+    if (!candidateContent.trim()) return false;
+    return candidateContent.length <= this.config.memorySizing.longToShortMaxChars;
+  }
+
+  private demotedMemoryDocumentPath(record: Pick<MemoryRecord, 'id' | 'project'>): string {
+    const dir = safeSegment(this.config.memorySizing.demoteDocumentDir || 'archives');
+    const root = record.project === 'global'
+      ? 'docs/global'
+      : `docs/projects/${safeSegment(record.project)}`;
+    return `${root}/${dir}/${record.id}.md`;
+  }
+
+  private briefFromContent(content: string, fallback: string): string {
+    const compact = content.replace(/\s+/g, ' ').trim();
+    return compact ? compact.slice(0, 160) : fallback;
   }
 
   private upsertMemoryFts(record: MemoryRecord): void {

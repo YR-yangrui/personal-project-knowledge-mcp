@@ -36,6 +36,11 @@ app.get('/api/projects', (_req, res) => {
   res.json(ok({ projects: repo.listProjects() }));
 });
 
+app.get('/api/semantic-types', (req, res) => {
+  const project = req.query.project ? String(req.query.project) : undefined;
+  res.json(ok({ results: service.semanticTypeCatalog(repo.semanticTypeCounts(project)) }));
+});
+
 app.get('/api/context', (req, res) => {
   res.json(ok(service.buildContext(String(req.query.project || ''), String(req.query.query || ''), Number(req.query.budget || 4000))));
 });
@@ -69,6 +74,8 @@ app.get('/api/docs', (req, res) => {
     project: req.query.project ? String(req.query.project) : undefined,
     semantic_type: req.query.semantic_type ? String(req.query.semantic_type) : undefined,
     status: req.query.status as any || 'active',
+    mode: req.query.mode === 'snippet' || req.query.mode === 'full' ? req.query.mode : 'index',
+    snippet_radius: req.query.snippet_radius ? Number(req.query.snippet_radius) : undefined,
     limit: req.query.limit ? Number(req.query.limit) : 50
   })));
 });

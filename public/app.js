@@ -1,4 +1,6 @@
 const $ = (id) => document.getElementById(id);
+let semanticTypes = [];
+let selectedCategory = '';
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -15,12 +17,20 @@ function project() {
   return $('projectInput').value.trim() || 'ProjectN';
 }
 
+function loadPolicy(item) {
+  return item.show_in_context && item.auto_load_index ? '默认加载' : '仅搜索';
+}
+
 function renderList(target, items, actions = () => '') {
+  if (!items.length) {
+    target.innerHTML = '<article class="card empty">暂无结果</article>';
+    return;
+  }
   target.innerHTML = items.map((item) => `
     <article class="card">
       <b>${escapeHtml(item.title || item.term || item.id)}</b>
       <div class="meta">${escapeHtml([item.project, item.semantic_type, item.load_level, item.path].filter(Boolean).join(' / '))}</div>
-      <div class="content">${escapeHtml(item.brief || item.content || `count: ${item.count ?? ''}`)}</div>
+      <div class="content">${escapeHtml(item.snippet || item.brief || item.content || `count: ${item.count ?? ''}`)}</div>
       ${actions(item)}
     </article>
   `).join('');
@@ -44,6 +54,81 @@ $('loadContextBtn').onclick = async () => {
   const data = await api(`/api/context?project=${encodeURIComponent(project())}&query=${encodeURIComponent($('queryInput').value)}`);
   $('contextOut').textContent = JSON.stringify(data, null, 2);
 };
+
+async function refreshCategories() {
+  const data = await api(`/api/semantic-types?project=${encodeURIComponent(project())}`);
+  semanticTypes = data.results.filter((item) => item.show_in_webui !== false);
+  const options = semanticTypes.map((item) => `<option value="${escapeHtml(item.semantic_type)}">${escapeHtml(item.semantic_type)}</option>`).join('');
+  $('memType').innerHTML = options;
+  $('docType').innerHTML = options;
+  renderCategories();
+  await loadCategory(selectedCategory);
+}
+
+function renderCategories() {
+  if (!semanticTypes.length) {
+    $('categoryList').innerHTML = '<article class="card empty">暂无分类</article>';
+    return;
+  }
+  $('categoryList').innerHTML = semanticTypes.map((item) => {
+    const active = item.semantic_type === selectedCategory ? ' active' : '';
+    const policy = loadPolicy(item);
+    const total = (item.memories ?? 0) + (item.documents ?? 0);
+    return `
+      <button class="category-item${active}" onclick="selectCategory('${escapeHtml(item.semantic_type)}')">
+        <span>${escapeHtml(item.semantic_type)}</span>
+        <small>${escapeHtml(policy)} · 记忆${item.memories ?? 0} / 文档${item.documents ?? 0}</small>
+      </button>
+    `;
+  }).join('');
+}
+
+window.selectCategory = async (semanticType) => {
+  selectedCategory = semanticType;
+  renderCategories();
+  await loadCategory(semanticType);
+};
+
+async function loadCategory(semanticType = '') {
+  const category = semanticTypes.find((item) => item.semantic_type === semanticType);
+  $('categoryHeader').innerHTML = category ? `
+    <b>${escapeHtml(category.semantic_type)}</b>
+    <span class="chip">${escapeHtml(loadPolicy(category))}</span>
+    <span class="chip">${escapeHtml(category.default_load_level)} / ${escapeHtml(category.default_scope)}</span>
+    <span class="chip">记忆 ${category.memories ?? 0}</span>
+    <span class="chip">文档 ${category.documents ?? 0}</span>
+    <p>${escapeHtml(category.description || '无说明')}</p>
+    <p class="meta">searchable=${category.searchable} · auto_load_index=${category.auto_load_index} · show_in_context=${category.show_in_context}</p>
+  ` : `
+    <b>全部分类</b>
+    <span class="chip">全局搜索</span>
+    <p class="meta">不限定 semantic_type，返回当前项目可搜索的记忆和文档。</p>
+  `;
+  await searchCategory();
+}
+
+async function searchCategory() {
+  const params = new URLSearchParams({
+    project: project(),
+    query: $('categoryQuery').value,
+    limit: '50'
+  });
+  if (selectedCategory) params.set('semantic_type', selectedCategory);
+  const memories = await api(`/api/memories?${params.toString()}`);
+  const docParams = new URLSearchParams(params);
+  docParams.set('mode', $('categoryMode').value);
+  const docs = await api(`/api/docs?${docParams.toString()}`);
+  renderList($('categoryMemoryList'), memories, (item) => item.related_doc ? `<button onclick="readDoc('${item.related_doc}')">读正文</button>` : '');
+  renderList($('categoryDocList'), docs, (item) => `<button onclick="readDoc('${item.path}')">读取</button> <button onclick="indexDoc('${item.path}')">建索引</button>`);
+}
+
+$('refreshCategoriesBtn').onclick = refreshCategories;
+$('allCategoryBtn').onclick = async () => {
+  selectedCategory = '';
+  renderCategories();
+  await loadCategory('');
+};
+$('categorySearchBtn').onclick = searchCategory;
 
 $('searchMemoryBtn').onclick = async () => {
   const data = await api(`/api/memories?project=${encodeURIComponent(project())}&query=${encodeURIComponent($('memoryQuery').value)}&limit=50`);
@@ -97,7 +182,7 @@ $('writeDocBtn').onclick = async () => {
       title: $('docTitle').value,
       brief: $('docContent').value.slice(0, 120),
       content: $('docContent').value,
-      semantic_type: 'module_doc',
+      semantic_type: $('docType').value || 'module_doc',
       tags: ['web']
     }
   });
@@ -185,6 +270,7 @@ $('backupBtn').onclick = async () => {
 
 refreshHealth().then(() => {
   $('storageBtn').click();
+  refreshCategories();
   $('loadContextBtn').click();
   $('searchMemoryBtn').click();
   $('searchDocsBtn').click();

@@ -8,138 +8,194 @@
 </head>
 <body>
   <header class="hero">
-    <div>
+    <div class="hero-copy">
       <p class="eyebrow">Local Memory Console</p>
       <h1>personal-project-knowledge-mcp</h1>
-      <p id="health">连接中...</p>
+      <p id="health" class="hero-status">连接中...</p>
     </div>
-    <button id="backupBtn">立即备份</button>
+    <div class="hero-actions">
+      <input id="projectInput" class="project-pill" placeholder="ProjectN" value="ProjectN" />
+      <button id="backupBtn">立即备份</button>
+    </div>
   </header>
 
-  <main class="grid">
-    <section class="panel span-2">
-      <h2>自动载入上下文</h2>
-      <div class="row">
-        <input id="projectInput" placeholder="ProjectN" value="ProjectN" />
-        <input id="queryInput" placeholder="查询词，例如：订单系统" />
-        <button id="loadContextBtn">构建上下文</button>
+  <main class="shell">
+    <section class="panel command-panel">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">Knowledge Map</p>
+          <h2>分类知识库</h2>
+          <p class="meta">按 semantic_type 管理记忆和文档；默认加载会进入上下文，仅搜索不会占启动 token。</p>
+        </div>
+        <div class="row fit">
+          <button id="refreshCategoriesBtn">刷新分类</button>
+          <button id="allCategoryBtn" class="secondary">全部</button>
+        </div>
       </div>
-      <pre id="contextOut" class="output"></pre>
-    </section>
 
-    <section class="panel span-2">
-      <h2>存储位置</h2>
-      <p class="meta">给 AI 和人工整理使用：所有文档路径以 dataRoot 为根，绝对路径仅用于查看和迁移确认。</p>
-      <button id="storageBtn">刷新存储位置</button>
-      <pre id="storageOut" class="output"></pre>
-    </section>
-
-    <section class="panel">
-      <h2>记忆搜索</h2>
-      <div class="row">
-        <input id="memoryQuery" placeholder="搜索记忆" />
-        <button id="searchMemoryBtn">搜索</button>
+      <div class="category-layout">
+        <aside class="category-sidebar">
+          <div id="categoryList" class="category-list"></div>
+        </aside>
+        <section class="category-detail">
+          <div id="categoryHeader" class="category-header"></div>
+          <div class="searchbar">
+            <input id="categoryQuery" placeholder="在当前分类中搜索；留空列出该分类" />
+            <select id="categoryMode">
+              <option value="index">索引</option>
+              <option value="snippet">命中片段</option>
+              <option value="full">全文</option>
+            </select>
+            <button id="categorySearchBtn">搜索</button>
+          </div>
+          <div class="split-results">
+            <section>
+              <h3>记忆</h3>
+              <div id="categoryMemoryList" class="list compact"></div>
+            </section>
+            <section>
+              <h3>文档</h3>
+              <div id="categoryDocList" class="list compact"></div>
+            </section>
+          </div>
+        </section>
       </div>
-      <div id="memoryList" class="list"></div>
     </section>
 
-    <section class="panel">
-      <h2>新增记忆</h2>
-      <input id="memTitle" placeholder="标题" />
-      <textarea id="memContent" placeholder="短记忆正文；长索引请填写摘要"></textarea>
-      <div class="row">
-        <select id="memLoad">
-          <option value="short">short</option>
-          <option value="long_index">long_index</option>
-        </select>
-        <select id="memType">
-          <option value="preference">preference</option>
-          <option value="gotcha">gotcha</option>
-          <option value="project_rule">project_rule</option>
-          <option value="decision">decision</option>
-          <option value="requirement_change">requirement_change</option>
-          <option value="doc_index">doc_index</option>
-        </select>
-      </div>
-      <button id="writeMemoryBtn">写入记忆</button>
+    <section class="quick-grid">
+      <section class="panel quick-panel">
+        <div class="panel-title">
+          <div>
+            <h2>自动载入上下文</h2>
+            <p class="meta">查看 AI 启动时会拿到的短记忆、长索引和分类目录。</p>
+          </div>
+        </div>
+        <div class="searchbar two">
+          <input id="queryInput" placeholder="查询词，例如：订单系统" />
+          <button id="loadContextBtn">构建</button>
+        </div>
+        <pre id="contextOut" class="output short"></pre>
+      </section>
+
+      <section class="panel quick-panel">
+        <div class="panel-title">
+          <div>
+            <h2>存储位置</h2>
+            <p class="meta">dataRoot、文档根目录、备份目录和路径规则。</p>
+          </div>
+          <button id="storageBtn" class="secondary">刷新</button>
+        </div>
+        <pre id="storageOut" class="output short"></pre>
+      </section>
     </section>
 
-    <section class="panel">
-      <h2>文档搜索</h2>
-      <div class="row">
-        <input id="docQuery" placeholder="搜索文档" />
-        <button id="searchDocsBtn">搜索</button>
-      </div>
-      <div id="docList" class="list"></div>
+    <section class="tool-grid">
+      <section class="panel">
+        <h2>记忆搜索</h2>
+        <div class="searchbar two">
+          <input id="memoryQuery" placeholder="搜索记忆" />
+          <button id="searchMemoryBtn">搜索</button>
+        </div>
+        <div id="memoryList" class="list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>文档搜索</h2>
+        <div class="searchbar two">
+          <input id="docQuery" placeholder="搜索文档" />
+          <button id="searchDocsBtn">搜索</button>
+        </div>
+        <div id="docList" class="list"></div>
+      </section>
+
+      <section class="panel form-panel">
+        <h2>新增记忆</h2>
+        <input id="memTitle" placeholder="标题" />
+        <textarea id="memContent" placeholder="短记忆正文；长索引请填写摘要"></textarea>
+        <div class="row">
+          <select id="memLoad">
+            <option value="short">short</option>
+            <option value="long_index">long_index</option>
+          </select>
+          <select id="memType"></select>
+        </div>
+        <button id="writeMemoryBtn">写入记忆</button>
+      </section>
+
+      <section class="panel form-panel">
+        <h2>新增文档</h2>
+        <input id="docPath" placeholder="docs/projects/ProjectN/module-notes/foo.md" />
+        <input id="docTitle" placeholder="文档标题" />
+        <select id="docType"></select>
+        <textarea id="docContent" placeholder="# Markdown 正文"></textarea>
+        <button id="writeDocBtn">写入文档并建立索引</button>
+      </section>
     </section>
 
-    <section class="panel">
-      <h2>新增文档</h2>
-      <input id="docPath" placeholder="docs/projects/ProjectN/module-notes/foo.md" />
-      <input id="docTitle" placeholder="文档标题" />
-      <textarea id="docContent" placeholder="# Markdown 正文"></textarea>
-      <button id="writeDocBtn">写入文档并建立索引</button>
-    </section>
+    <details class="advanced" open>
+      <summary>高级工具与维护</summary>
+      <section class="tool-grid advanced-grid">
+        <section class="panel">
+          <h2>高频统计</h2>
+          <button id="statsBtn">刷新统计</button>
+          <div id="statsList" class="chips"></div>
+          <h3>高频候选</h3>
+          <div id="freqCandidates" class="list small"></div>
+        </section>
 
-    <section class="panel">
-      <h2>高频统计</h2>
-      <button id="statsBtn">刷新统计</button>
-      <div id="statsList" class="chips"></div>
-      <h3>高频候选</h3>
-      <div id="freqCandidates" class="list"></div>
-    </section>
+        <section class="panel">
+          <h2>导入 Markdown 目录</h2>
+          <input id="importDir" placeholder="C:\claude\ProjectN\docs" />
+          <div class="row wrap">
+            <input id="importPattern" value="**/*.md" />
+            <label><input id="importOverwrite" type="checkbox" checked /> 覆盖同路径</label>
+            <label><input id="importIndex" type="checkbox" checked /> 创建 long_index</label>
+          </div>
+          <button id="importBtn">开始导入</button>
+          <pre id="importOut" class="output mini"></pre>
+        </section>
 
-    <section class="panel">
-      <h2>导入 Markdown 目录</h2>
-      <input id="importDir" placeholder="C:\claude\ProjectN\docs" />
-      <div class="row">
-        <input id="importPattern" value="**/*.md" />
-        <label><input id="importOverwrite" type="checkbox" checked /> 覆盖同路径</label>
-        <label><input id="importIndex" type="checkbox" checked /> 创建 long_index</label>
-      </div>
-      <button id="importBtn">开始导入</button>
-      <pre id="importOut" class="output"></pre>
-    </section>
+        <section class="panel">
+          <h2>迁移单个 Markdown</h2>
+          <input id="migrateSource" placeholder="C:\RequestFiles\legacy.md" />
+          <input id="migrateTarget" placeholder="docs/projects/ProjectN/imports/legacy.md（可选）" />
+          <div class="row">
+            <select id="migrateMode">
+              <option value="copy">copy</option>
+              <option value="move">move</option>
+            </select>
+            <label><input id="migrateOverwrite" type="checkbox" checked /> 覆盖</label>
+          </div>
+          <button id="migrateBtn">迁移文件</button>
+          <pre id="migrateOut" class="output mini"></pre>
+        </section>
 
-    <section class="panel">
-      <h2>迁移单个 Markdown</h2>
-      <input id="migrateSource" placeholder="C:\RequestFiles\legacy.md" />
-      <input id="migrateTarget" placeholder="docs/projects/ProjectN/imports/legacy.md（可选）" />
-      <div class="row">
-        <select id="migrateMode">
-          <option value="copy">copy</option>
-          <option value="move">move</option>
-        </select>
-        <label><input id="migrateOverwrite" type="checkbox" checked /> 覆盖</label>
-      </div>
-      <button id="migrateBtn">迁移文件</button>
-      <pre id="migrateOut" class="output"></pre>
-    </section>
+        <section class="panel">
+          <h2>移动已入库文档</h2>
+          <input id="moveOldPath" placeholder="旧 dataRoot 相对路径" />
+          <input id="moveNewPath" placeholder="新 dataRoot 相对路径" />
+          <label><input id="moveOverwrite" type="checkbox" /> 覆盖已有文件</label>
+          <button id="moveDocBtn">移动文档</button>
+          <pre id="moveOut" class="output mini"></pre>
+        </section>
 
-    <section class="panel">
-      <h2>移动已入库文档</h2>
-      <input id="moveOldPath" placeholder="旧 dataRoot 相对路径" />
-      <input id="moveNewPath" placeholder="新 dataRoot 相对路径" />
-      <label><input id="moveOverwrite" type="checkbox" /> 覆盖已有文件</label>
-      <button id="moveDocBtn">移动文档</button>
-      <pre id="moveOut" class="output"></pre>
-    </section>
+        <section class="panel">
+          <h2>MCP Bug 反馈</h2>
+          <input id="bugTitle" placeholder="问题标题" />
+          <input id="bugComponent" placeholder="组件，例如 search_docs" />
+          <textarea id="bugDescription" placeholder="AI 使用 MCP 过程中发现的问题、期望和实际表现"></textarea>
+          <button id="bugReportBtn">记录 bug_report</button>
+          <pre id="bugOut" class="output mini"></pre>
+        </section>
 
-    <section class="panel">
-      <h2>MCP Bug 反馈</h2>
-      <input id="bugTitle" placeholder="问题标题" />
-      <input id="bugComponent" placeholder="组件，例如 search_docs" />
-      <textarea id="bugDescription" placeholder="AI 使用 MCP 过程中发现的问题、期望和实际表现"></textarea>
-      <button id="bugReportBtn">记录 bug_report</button>
-      <pre id="bugOut" class="output"></pre>
-    </section>
-
-    <section class="panel span-2">
-      <h2>候选提取</h2>
-      <textarea id="conversationText" placeholder="粘贴对话摘要，提取 preference / gotcha / decision 等候选"></textarea>
-      <button id="extractBtn">提取候选</button>
-      <div id="candidateList" class="list"></div>
-    </section>
+        <section class="panel">
+          <h2>候选提取</h2>
+          <textarea id="conversationText" placeholder="粘贴对话摘要，提取 preference / gotcha / decision 等候选"></textarea>
+          <button id="extractBtn">提取候选</button>
+          <div id="candidateList" class="list small"></div>
+        </section>
+      </section>
+    </details>
   </main>
 
   <script src="./app.js"></script>

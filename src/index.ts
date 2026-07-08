@@ -134,6 +134,14 @@ server.registerTool('list_projects', {
   inputSchema: {}
 }, async () => jsonResult({ projects: repo.listProjects() }));
 
+server.registerTool('list_semantic_types', {
+  description: 'List configured semantic types/categories, including searchability, default loading policy, and memory/document counts. Use before category-aware searches or when the user asks what categories exist.',
+  inputSchema: { project: z.string().optional(), cwd: z.string().optional() }
+}, async ({ project, cwd }) => {
+  const resolvedProject = project ?? (cwd ? detectProject(cwd) : undefined);
+  return jsonResult({ results: service.semanticTypeCatalog(repo.semanticTypeCounts(resolvedProject)) });
+});
+
 server.registerTool('search_docs', {
   description: 'Search indexed Markdown documents by text and metadata. Returns metadata/path only, not full body. Use read_doc next when the document is relevant and details matter.',
   inputSchema: {
@@ -142,6 +150,8 @@ server.registerTool('search_docs', {
     semantic_type: z.string().optional(),
     tags: z.array(z.string()).optional(),
     status: z.enum(['active', 'stale', 'deprecated', 'deleted']).optional(),
+    mode: z.enum(['index', 'snippet', 'full']).optional(),
+    snippet_radius: z.number().int().positive().max(400).optional(),
     limit: z.number().int().positive().max(100).optional()
   }
 }, async (input) => jsonResult({ results: repo.searchDocs(input) }));
@@ -374,6 +384,14 @@ server.registerResource('projects', 'memory://projects', {
   mimeType: 'application/json'
 }, async (uri) => ({
   contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ projects: repo.listProjects(), dataRoot: config.dataRoot }, null, 2) }]
+}));
+
+server.registerResource('semantic-types', 'memory://semantic-types', {
+  title: 'Semantic Types',
+  description: 'Configured memory/document categories and their default search/load behavior.',
+  mimeType: 'application/json'
+}, async (uri) => ({
+  contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ results: service.semanticTypeCatalog(repo.semanticTypeCounts()) }, null, 2) }]
 }));
 
 async function main(): Promise<void> {

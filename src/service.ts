@@ -14,8 +14,9 @@ export class KnowledgeService {
 
   buildContext(project?: string, query?: string, budgetTokens?: number): Record<string, unknown> {
     const loaded = this.repo.listLoadedMemory(project);
+    const semanticTypeCounts = this.repo.semanticTypeCounts(project);
     const relatedDocs = query
-      ? this.repo.searchDocs({ project, query, status: 'active', limit: 5 })
+      ? this.repo.searchDocs({ project, query, status: 'active', limit: 5, mode: 'index' })
       : [];
     const relatedLongMemory = query
       ? this.repo.searchMemory({ project, query, status: 'active', load_level: 'long_index', limit: 5 })
@@ -23,6 +24,7 @@ export class KnowledgeService {
 
     const short = this.trimShortMemories(loaded.short, budgetTokens);
     return {
+      semantic_type_catalog: this.semanticTypeCatalog(semanticTypeCounts),
       loaded_short_memories: short.map((m) => ({
         id: m.id,
         project: m.project,
@@ -60,9 +62,33 @@ export class KnowledgeService {
       })),
       notes: [
         '短记忆已自动全文载入，可直接使用。',
-        '长记忆索引和文档入口只说明存在相关知识，不代表正文已读取；需要正文时调用 read_doc。'
+        '长记忆索引和文档入口只说明存在相关知识，不代表正文已读取；需要正文时调用 read_doc。',
+        'semantic_type_catalog 会列出可搜索分类；show_in_context=false 或 auto_load_index=false 的分类默认不占启动上下文，需要主动搜索。'
       ]
     };
+  }
+
+  semanticTypeCatalog(counts = this.repo.semanticTypeCounts()): Array<Record<string, unknown>> {
+    const countMap = new Map(counts.map((item) => [item.semantic_type, item]));
+    const names = new Set([...Object.keys(this.config.semanticTypes), ...counts.map((item) => item.semantic_type)]);
+    return Array.from(names).sort().map((name) => {
+      const config = this.config.semanticTypes[name] ?? {
+        default_load_level: 'long_index',
+        default_scope: 'project',
+        description: '',
+        searchable: true,
+        auto_load_index: false,
+        show_in_context: false,
+        show_in_webui: true
+      };
+      const count = countMap.get(name);
+      return {
+        semantic_type: name,
+        ...config,
+        memories: count?.memories ?? 0,
+        documents: count?.documents ?? 0
+      };
+    });
   }
 
   private trimShortMemories(records: MemoryRecord[], budgetTokens?: number): MemoryRecord[] {
@@ -97,7 +123,7 @@ export class KnowledgeService {
       }
 
       try {
-        if (candidate.load_level === 'short' && candidate.content.length <= this.config.maxShortMemoryChars) {
+        if (candidate.content.length <= this.config.memorySizing.shortMaxChars) {
           committed.push(this.repo.writeMemory({
             project: candidate.project,
             load_level: 'short',

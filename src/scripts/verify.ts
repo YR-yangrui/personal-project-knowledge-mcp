@@ -92,6 +92,24 @@ const artifactResult = service.recordSessionArtifacts('ProjectN', [{
   content: '# 验证会话产物\n\n这是一份验证文档。\n',
   tags: ['verify']
 }]);
+const autoDemoted = repo.writeMemory({
+  project: 'ProjectN',
+  load_level: 'short',
+  semantic_type: 'project_rule',
+  title: '自动降级验证',
+  content: '这是一条用于验证短记忆过长时会自动沉淀为文档并保留 long_index 的内容。'.repeat(40),
+  tags: ['verify', 'auto-sizing']
+});
+const autoDemotedDoc = autoDemoted.related_doc ? repo.resolveDocumentPath(autoDemoted.related_doc) : undefined;
+const autoPromoted = repo.writeMemory({
+  project: 'ProjectN',
+  load_level: 'long_index',
+  semantic_type: 'gotcha',
+  title: '自动升级短索引验证',
+  brief: '足够短的无文档 long_index 应自动转为 short。',
+  content: '足够短的无文档 long_index 应自动转为 short。',
+  tags: ['verify', 'auto-sizing']
+});
 
 const hookStartRaw = execFileSync(process.execPath, [
   '--import',
@@ -137,6 +155,9 @@ if (bugReport.document.semantic_type !== 'bug_report') failures.push('recordBugR
 if (candidates.length === 0) failures.push('Candidate extraction returned no candidates.');
 if (commitResult.committed.length === 0) failures.push('Candidate commit returned no committed records.');
 if (artifactResult.committed.length === 0) failures.push('Session artifact recording returned no committed records.');
+if (autoDemoted.load_level !== 'long_index') failures.push('Overlong short memory was not auto-demoted to long_index.');
+if (!autoDemoted.related_doc || !autoDemotedDoc?.exists) failures.push('Auto-demoted memory did not create a related document.');
+if (autoPromoted.load_level !== 'short') failures.push('Short doc-less long_index was not auto-promoted to short.');
 if (!fs.existsSync(hookStart.context_path)) failures.push('hook-start did not write context.md.');
 if (hookEnd.candidates === 0) failures.push('hook-end generated no candidates.');
 if (hookCommit.committed === 0) failures.push('hook-commit committed no candidates.');

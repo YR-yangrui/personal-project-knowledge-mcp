@@ -25,12 +25,13 @@
 | `update_memory` | 修改记忆 |
 | `deprecate_memory` | 软废弃记忆 |
 | `list_projects` | 列出项目 |
+| `list_semantic_types` | 列出语义分类、默认加载策略、搜索策略和记忆/文档数量 |
 
 ### 文档
 
 | Tool | 说明 |
 |---|---|
-| `search_docs` | 搜索文档索引 |
+| `search_docs` | 搜索文档，支持 `mode=index/snippet/full` |
 | `read_doc` | 按路径读取 Markdown 正文，并返回相对路径和绝对路径 |
 | `write_doc` | 写入并索引 Markdown 文档 |
 | `resolve_doc_path` | 把 dataRoot 相对路径解析成绝对路径，并返回是否存在/是否已索引 |
@@ -85,6 +86,7 @@
 | `memory://loaded/global` | 全局短记忆 JSON |
 | `memory://loaded/project/{project}` | 指定项目短记忆和长记忆索引 JSON |
 | `memory://projects` | 已有记忆或文档的项目列表 |
+| `memory://semantic-types` | 语义分类及默认搜索/加载策略 |
 
 ---
 
@@ -95,6 +97,7 @@
 | `GET` | `/api/health` | 健康检查 |
 | `GET` | `/api/storage` | 存储位置和路径规则 |
 | `GET` | `/api/projects` | 项目列表 |
+| `GET` | `/api/semantic-types` | 分类列表、加载策略和数量 |
 | `GET` | `/api/context` | 构建上下文 |
 | `GET` | `/api/memories` | 搜索记忆 |
 | `POST` | `/api/memories` | 新增记忆 |
@@ -114,3 +117,5 @@
 | `POST` | `/api/candidates/extract` | 提取候选 |
 | `POST` | `/api/candidates/commit` | 提交候选 |
 | `POST` | `/api/backup` | 备份数据库 |
+
+`GET /api/docs` 支持 `mode=index|snippet|full`。`snippet` 会返回命中文本附近上下文，`full` 返回完整正文，默认 `index` 只返回标题、摘要、路径等索引信息。

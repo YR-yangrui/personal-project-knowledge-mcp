@@ -23,6 +23,7 @@
     "web:dist": "node dist/web.js",
     "install:win": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
     "install:codex": "powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1",
+    "update:win": "powershell -ExecutionPolicy Bypass -File scripts/update.ps1",
     "uninstall:win": "powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1",
     "uninstall:codex": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-codex.ps1",
     "package:win": "powershell -ExecutionPolicy Bypass -File scripts/package.ps1",

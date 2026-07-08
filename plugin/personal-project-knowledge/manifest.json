@@ -12,7 +12,9 @@
     "entry_point": "dist/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["dist/index.js"],
+      "args": [
+        "dist/index.js"
+      ],
       "env": {}
     }
   },
@@ -21,6 +23,11 @@
       "name": "personal-project-knowledge",
       "path": "../../skills/personal-project-knowledge",
       "description": "Portable assistant routing guide for using the personal-project-knowledge MCP."
+    },
+    {
+      "name": "personal-project-knowledge-config",
+      "path": "../../skills/personal-project-knowledge-config",
+      "description": "Configuration guidance skill for memory sizing, budgets, data root, and custom semantic types."
     }
   ],
   "resources": [
@@ -35,6 +42,10 @@
     {
       "uri": "context://personal-project-knowledge/project/{project}",
       "description": "Project memory context with short memories and long indexes."
+    },
+    {
+      "uri": "memory://semantic-types",
+      "description": "Configured semantic categories and their default search/load behavior."
     }
   ],
   "tools": [
@@ -48,6 +59,7 @@
     "update_memory",
     "deprecate_memory",
     "list_projects",
+    "list_semantic_types",
     "search_docs",
     "read_doc",
     "write_doc",

@@ -35,7 +35,7 @@ export class CandidateExtractor {
       const key = `${targetProject}|${rule.semantic_type}|${title}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const loadLevel = line.length <= this.config.maxShortMemoryChars ? 'short' : 'long_index';
+      const loadLevel = line.length <= this.config.memorySizing.shortMaxChars ? 'short' : 'long_index';
       candidates.push({
         id: createId('cand'),
         project: targetProject,
