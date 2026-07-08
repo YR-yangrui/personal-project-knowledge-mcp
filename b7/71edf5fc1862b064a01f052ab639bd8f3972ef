@@ -1,0 +1,129 @@
+src/repository.ts
+  s_ade85c348aaaac::t_a87f3d5acd6f0a 241-245,410-414
+  s_ade85c348aaaac::t_5c43996c9567a8 149,545-579,594,602,637,647,655,660
+  s_ade85c348aaaac::t_780803aec56f63 9,263,285-303,393,416,426,437,452,454,468,614
+  s_ade85c348aaaac::t_b94c43fa67f5fd 191-192,197-198,200-205,580-593,622,631,635
+  s_dd01f2d4cab624::t_3930b12241fa4f 6,126,190,207-209,595-601,603-613,615-621,623-630,632-634,636,638-646,648-654,656-659,661
+codex-plugin/personal-project-knowledge/.codex-plugin/plugin.json
+  s_ade85c348aaaac::t_69b3711d658674 12
+plugin/personal-project-knowledge/skills/personal-project-knowledge-config/references/config-fields.md
+  s_ade85c348aaaac::t_6711fe7df735fd 73-141
+  s_ade85c348aaaac::t_c5cb6711594e30 1-72,142-145
+src/types.ts
+  s_ade85c348aaaac::t_5b84e8edc5603e 116-128
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge-config/SKILL.md
+  s_ade85c348aaaac::t_b2f0698b462d11 3-137,143-149,153-155,157-158,167,175-177,183-235
+  s_ade85c348aaaac::t_6711fe7df735fd 138-142,150-152,159-166,168-174,178-182
+  s_ade85c348aaaac::t_293713278ed86c 1-2,156
+plugin/personal-project-knowledge/skills/personal-project-knowledge-config/SKILL.md
+  s_ade85c348aaaac::t_6711fe7df735fd 138-142,150-152,159-166,168-174,178-182
+  s_ade85c348aaaac::t_b2f0698b462d11 3-137,143-149,153-155,157-158,167,175-177,183-235
+  s_ade85c348aaaac::t_900969dbb9e5ac 1-2,156
+docs/API.md
+  s_ade85c348aaaac::t_7cea774675451e 28,34,89,100,120-121
+scripts/install.ps1
+  s_ade85c348aaaac::t_67f945e1122823 47-52
+  s_ade85c348aaaac::t_48cd9a7d0cafb6 58-66
+docs/CONFIGURATION.md
+  s_ade85c348aaaac::t_92b2657d82bce1 55-59,78-82,89-96,100-104,108-112,116-117
+  s_ade85c348aaaac::t_a677ce290195d3 1-54,60-77,83-88,97-99,105-107,113-115,118-129
+src/index.ts
+  s_ade85c348aaaac::t_67d207045debce 137-144,153-154,389-394
+  s_dd01f2d4cab624::t_9b9e7b1971e1ed 395-396
+public/app.js
+  s_ade85c348aaaac::t_5c83c693f8a704 25-28,69-72,80,98-99,101
+  s_ade85c348aaaac::t_8ec974c86eb1d9 2-3,20-23,33,58-68,73-79,81-97,100,102-132,185,273
+src/config.ts
+  s_ade85c348aaaac::t_8bbec468c93004 6-15,19-25,32,36-46,59-65,77-80,85-88,90,93-109
+skills/personal-project-knowledge-config/references/config-fields.md
+  s_ade85c348aaaac::t_c26e382c7eb5e6 73-141
+  s_ade85c348aaaac::t_e934d9cca6d930 1-72,142-145
+docs/ARCHITECTURE.md
+  s_ade85c348aaaac::t_6baaded4c5ab31 15,42,63-74
+  s_ade85c348aaaac::t_e96b932b979f85 14
+  s_ade85c348aaaac::t_f25437115f1484 75
+scripts/sync-adapters.ps1
+  s_ade85c348aaaac::t_c43bf979b091b5 13
+  s_ade85c348aaaac::t_2407108e6d6a19 14-20
+  s_dd01f2d4cab624::t_1008ea42681ce0 4-5,7-8,10,12,22
+scripts/update.ps1
+  s_ade85c348aaaac::t_3ff97af105a64d 1-165
+skills/personal-project-knowledge-config/SKILL.md
+  s_ade85c348aaaac::t_22e0b492934a7a 138-142,150-152,159-166,168-174,178-182
+  s_ade85c348aaaac::t_2a72a120de5569 3,6-137,143-149,153-155,157-158,167,175-177,183-231,235
+  s_ade85c348aaaac::t_52c87cfa16f9d1 1-2,4
+  s_ade85c348aaaac::t_c13d965823a689 5,156,232-234
+src/service.ts
+  s_ade85c348aaaac::t_6bc6a160fde5c3 17,19,27,65-66,71-91
+  s_dd01f2d4cab624::t_87437f9ce08d34 92-93,126
+README.md
+  s_ade85c348aaaac::t_83b81c2873bd1d 45,49,56,68-81,116,180,280-281
+  s_72e4c6f88263d1::t_2b2dd0e185e233 39-44,46-48,50-55,57-67
+docs/WEB_UI.md
+  s_ade85c348aaaac::t_ccaba3d7c5abde 32-34
+package.json
+  s_ade85c348aaaac::t_3ff97af105a64d 26
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge-config/references/config-fields.md
+  s_ade85c348aaaac::t_6711fe7df735fd 73-141
+  s_ade85c348aaaac::t_6a738e24a664da 1-72,142-145
+public/index.html
+  s_ade85c348aaaac::t_4e23286c63369c 11,14-18,22-33,37,42,49-59,65-78,80-89,92-100,102-109,111-123,125-132,135-144,146-156,158-198
+  s_ade85c348aaaac::t_081371eb025847 36,38-41,43-48,60-61
+src/web.ts
+  s_ade85c348aaaac::t_214f247489f205 39-43,77-78
+public/styles.css
+  s_ade85c348aaaac::t_fb5a556b6a2b59 185,195-199,201,203-205,208,210-211,215-216,218-219,224-227,229-230,234,237-238,242,244-246,278,315-316,326-327,342
+  s_ade85c348aaaac::t_a5023cc10dd41a 2-15,24-33,41,44-47,49,51-52,58-60,62-69,75-76,80-82,84-109,112-116,118-120,124,126-128,130-131,134-151,156,159-160,162-164,167-168,172-173,175-176,182-183,187-194,200,202,206-207,212-214,217,220-223,228,231-233,235-236,239-241,243,247-262,264,267-269,273-277,279-282,285-294,300,304-306,308,310-314,317-325,328-334,337-338,340-341,343-346
+  s_ade85c348aaaac::t_1e8c1f960328bf 184
+src/scripts/verify.ts
+  s_ade85c348aaaac::t_e7d2cbebf6f6fe 95-112,158-160
+scripts/install-codex.ps1
+  s_ade85c348aaaac::t_c43bf979b091b5 102,108,134
+  s_ade85c348aaaac::t_3ff97af105a64d 5,14,24-30
+  s_ade85c348aaaac::t_2407108e6d6a19 101,103-107,132
+  s_dd01f2d4cab624::t_451df53ccded41 96-99,125-126,128-131,133,173
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge-config/agents/openai.yaml
+  s_ade85c348aaaac::t_37398a07e7a20f 1-4
+manifest.json
+  s_ade85c348aaaac::t_b0a484bfa3abaf 25-29,48-51,95-98
+plugin/personal-project-knowledge/manifest.json
+  s_ade85c348aaaac::t_5ddc46f6f5ca8c 15-17,26-30,45-48,62
+plugin/personal-project-knowledge/skills/personal-project-knowledge-config/agents/openai.yaml
+  s_ade85c348aaaac::t_1bdf8d708f0c16 1-4
+skills/personal-project-knowledge-config/agents/openai.yaml
+  s_ade85c348aaaac::t_929a05cae5ff08 1-4
+src/candidates.ts
+  s_dd01f2d4cab624::t_cef4be8288695a 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b771edf5fc1862b064a01f052ab639bd8f3972ef",
+  "prompts": {},
+  "sessions": {
+    "s_72e4c6f88263d1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f40e2-b646-7712-8399-66bc3c730f78",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_ade85c348aaaac": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f407a-2d05-7fc3-8ad1-b2f49b12e392",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
