@@ -94,6 +94,7 @@ export interface WriteDocumentInput {
   tags?: string[];
   status?: Status;
   last_verified_commit?: string;
+  expected_checksum?: string;
 }
 
 export interface SearchMemoryInput {

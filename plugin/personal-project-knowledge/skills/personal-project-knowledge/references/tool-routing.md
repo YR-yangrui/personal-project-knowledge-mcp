@@ -7,7 +7,7 @@
 - `search_memory`: search preferences, rules, gotchas, decisions, requirement-change indexes.
 - `get_memory`: read one memory by id.
 - `search_docs`: search Markdown document metadata and FTS index.
-- `read_doc`: read Markdown body only after search/index says it is relevant.
+- `read_doc`: read Markdown body only after search/index says it is relevant; use the returned `record.checksum` as the optimistic-lock token for edits.
 
 ## Write Or Update Memory
 
@@ -23,8 +23,8 @@
 
 ## Documents
 
-- `write_doc`: create or replace indexed Markdown.
-- `patch_doc`: targeted replacement in an indexed Markdown document.
+- `write_doc`: create or replace indexed Markdown. When replacing an existing document, pass `expected_checksum` from the latest `read_doc` to avoid overwriting concurrent edits.
+- `patch_doc`: targeted replacement in an indexed Markdown document. Prefer this for small updates and pass `expected_checksum`; if the document changed, reread and merge instead of retrying blindly.
 - `create_or_update_doc_index`: make/update the auto-loaded long index for a document.
 - `promote_doc_to_long_memory`: alias for document indexing.
 
@@ -43,5 +43,6 @@
 
 - Do not put long Markdown bodies in short memory.
 - Do not answer from long index details until `read_doc` has loaded the body.
+- Do not edit an existing document from stale context; call `read_doc`, pass `expected_checksum`, and reread if the MCP reports that the document changed.
 - Prefer updating/deprecating old memories over writing contradictory new ones.
 - If the user says "记住", write memory immediately unless it is clearly too long; then write document + long index.

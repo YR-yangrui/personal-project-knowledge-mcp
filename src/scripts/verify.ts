@@ -62,6 +62,90 @@ const overwrittenDoc = repo.writeDocument({
   content: '# update-doc skill updated\n\nwrite_doc 覆盖同一路径应保持数据库和正文一致。\n'
 });
 const overwrittenDocRead = repo.readDocument(hyphenDoc.path);
+const staleChecksum = overwrittenDoc.checksum ?? '';
+fs.appendFileSync(overwrittenDocRead.absolute_path, '\n外部修改：模拟用户在 AI 修改前更新了文档。\n', 'utf8');
+let staleChecksumRejected = false;
+try {
+  repo.patchDocument(hyphenDoc.path, 'write_doc 覆盖同一路径应保持数据库和正文一致。', '这次 patch 不应该成功。', staleChecksum);
+} catch (error) {
+  staleChecksumRejected = error instanceof Error && error.message.includes('Document changed since last read');
+}
+const rereadAfterExternalEdit = repo.readDocument(hyphenDoc.path);
+const patchedAfterReread = repo.patchDocument(
+  hyphenDoc.path,
+  '外部修改：模拟用户在 AI 修改前更新了文档。',
+  '外部修改：重读后允许 AI 基于最新 checksum 合并修改。',
+  rereadAfterExternalEdit.record?.checksum ?? ''
+);
+const concurrencyDoc = repo.writeDocument({
+  project: 'ProjectN',
+  path: 'docs/projects/ProjectN/module-notes/concurrency.md',
+  semantic_type: 'module_doc',
+  title: '文档并发验证',
+  brief: '覆盖 write_doc/patch_doc 的 expected_checksum 乐观锁场景。',
+  tags: ['verify', 'concurrency'],
+  content: '# 文档并发验证\n\n第一版内容。\n'
+});
+const concurrencyRead1 = repo.readDocument(concurrencyDoc.path);
+const patchedWithExpectedChecksum = repo.patchDocument(
+  concurrencyDoc.path,
+  '第一版内容。',
+  '第二版内容，patch_doc 带 expected_checksum 成功。',
+  concurrencyRead1.record?.checksum ?? ''
+);
+const concurrencyRead2 = repo.readDocument(concurrencyDoc.path);
+let missingOldTextRejected = false;
+try {
+  repo.patchDocument(concurrencyDoc.path, '不存在的旧文本', '不应该写入。', concurrencyRead2.record?.checksum ?? '');
+} catch (error) {
+  missingOldTextRejected = error instanceof Error && error.message.includes('old_text not found');
+}
+const wrongChecksumBefore = repo.readDocument(concurrencyDoc.path);
+let wrongChecksumRejected = false;
+try {
+  repo.patchDocument(concurrencyDoc.path, '第二版内容', '错误 checksum 不应该写入', 'wrong-checksum');
+} catch (error) {
+  wrongChecksumRejected = error instanceof Error && error.message.includes('Document changed since last read');
+}
+const wrongChecksumAfter = repo.readDocument(concurrencyDoc.path);
+const writeDocExpectedRead = repo.readDocument(concurrencyDoc.path);
+const writeDocWithExpectedChecksum = repo.writeDocument({
+  project: 'ProjectN',
+  path: concurrencyDoc.path,
+  semantic_type: 'module_doc',
+  title: '文档并发验证 - 安全覆盖',
+  brief: 'write_doc 带 expected_checksum 覆盖成功。',
+  tags: ['verify', 'concurrency', 'safe-overwrite'],
+  content: '# 文档并发验证\n\n第三版内容，write_doc 带 expected_checksum 成功。\n',
+  expected_checksum: writeDocExpectedRead.record?.checksum ?? ''
+});
+const staleWriteRead = repo.readDocument(concurrencyDoc.path);
+fs.appendFileSync(staleWriteRead.absolute_path, '\n外部修改：write_doc 覆盖前的并发变更。\n', 'utf8');
+let staleWriteRejected = false;
+try {
+  repo.writeDocument({
+    project: 'ProjectN',
+    path: concurrencyDoc.path,
+    semantic_type: 'module_doc',
+    title: '文档并发验证 - 过期覆盖',
+    content: '# 文档并发验证\n\n过期 checksum 不应该覆盖。\n',
+    expected_checksum: staleWriteRead.record?.checksum ?? ''
+  });
+} catch (error) {
+  staleWriteRejected = error instanceof Error && error.message.includes('Document changed since last read');
+}
+const afterRejectedWrite = repo.readDocument(concurrencyDoc.path);
+const uncheckedWrite = repo.writeDocument({
+  project: 'ProjectN',
+  path: concurrencyDoc.path,
+  semantic_type: 'module_doc',
+  title: '文档并发验证 - 兼容覆盖',
+  brief: '不传 expected_checksum 时保持旧调用兼容。',
+  tags: ['verify', 'concurrency', 'legacy-overwrite'],
+  content: '# 文档并发验证\n\n第四版内容，不传 expected_checksum 仍允许覆盖。\n'
+});
+const uncheckedWriteRead = repo.readDocument(concurrencyDoc.path);
+const concurrencySearchResults = repo.searchDocs({ project: 'ProjectN', query: '第四版内容', limit: 10 });
 const hyphenDocResults = repo.searchDocs({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const hyphenMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const storageInfo = repo.getStorageInfo('ProjectN');
@@ -157,6 +241,19 @@ if (hyphenDocResults.length === 0) failures.push('Hyphen doc search returned no 
 if (hyphenMemoryResults.length === 0) failures.push('Hyphen memory search returned no results.');
 if (overwrittenDoc.id !== hyphenDoc.id) failures.push('writeDocument overwrite created a new document id.');
 if (!overwrittenDocRead.content.includes('write_doc 覆盖同一路径应保持数据库和正文一致。')) failures.push('writeDocument overwrite did not update Markdown content.');
+if (!staleChecksumRejected) failures.push('patchDocument did not reject a stale expected_checksum.');
+if (patchedAfterReread.id !== hyphenDoc.id) failures.push('patchDocument after reread did not preserve document id.');
+if (patchedWithExpectedChecksum.id !== concurrencyDoc.id) failures.push('patchDocument with expected_checksum did not preserve document id.');
+if (!missingOldTextRejected) failures.push('patchDocument did not reject missing old_text.');
+if (!wrongChecksumRejected) failures.push('patchDocument did not reject a wrong expected_checksum.');
+if (wrongChecksumAfter.content !== wrongChecksumBefore.content) failures.push('patchDocument changed content after wrong expected_checksum.');
+if (writeDocWithExpectedChecksum.id !== concurrencyDoc.id) failures.push('writeDocument with expected_checksum did not update existing document.');
+if (!staleWriteRejected) failures.push('writeDocument did not reject a stale expected_checksum.');
+if (!afterRejectedWrite.content.includes('外部修改：write_doc 覆盖前的并发变更。')) failures.push('writeDocument stale rejection lost external edit.');
+if (afterRejectedWrite.content.includes('过期 checksum 不应该覆盖')) failures.push('writeDocument stale rejection still overwrote content.');
+if (uncheckedWrite.id !== concurrencyDoc.id) failures.push('writeDocument without expected_checksum did not preserve document id.');
+if (!uncheckedWriteRead.content.includes('第四版内容，不传 expected_checksum 仍允许覆盖。')) failures.push('writeDocument without expected_checksum did not update content.');
+if (concurrencySearchResults.length === 0) failures.push('Document FTS did not reflect unchecked write_doc overwrite.');
 if (!storageInfo.project_documents_root?.includes('ProjectN')) failures.push('Storage info did not include project document root.');
 if (!resolvedBeforeMove.absolute_path.endsWith('update-doc.md')) failures.push('resolveDocumentPath did not return absolute doc path.');
 if (!fs.existsSync(resolvedAfterMove.absolute_path)) failures.push('moveDocument did not move the Markdown file.');

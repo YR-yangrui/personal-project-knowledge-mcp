@@ -162,7 +162,7 @@ server.registerTool('read_doc', {
 }, async ({ path }) => jsonResult(repo.readDocument(path)));
 
 server.registerTool('write_doc', {
-  description: 'Write and index a Markdown document for long-form knowledge: designs, decisions, requirement changes, investigation notes, imported docs, and session artifacts. Path is relative to the data root.',
+  description: 'Write and index a Markdown document for long-form knowledge: designs, decisions, requirement changes, investigation notes, imported docs, and session artifacts. Path is relative to the data root. When replacing an existing document, pass expected_checksum from read_doc to fail safely if the file changed since it was read.',
   inputSchema: {
     project: z.string().optional(),
     path: z.string(),
@@ -172,7 +172,8 @@ server.registerTool('write_doc', {
     content: z.string(),
     tags: z.array(z.string()).optional(),
     status: z.enum(['active', 'stale', 'deprecated', 'deleted']).optional(),
-    last_verified_commit: z.string().optional()
+    last_verified_commit: z.string().optional(),
+    expected_checksum: z.string().optional()
   }
 }, async (input) => jsonResult(repo.writeDocument(input)));
 
@@ -182,9 +183,9 @@ server.registerTool('resolve_doc_path', {
 }, async ({ path }) => jsonResult(repo.resolveDocumentPath(path)));
 
 server.registerTool('patch_doc', {
-  description: 'Patch an indexed Markdown document with targeted text replacement. Use for small doc corrections; use write_doc for full rewrites.',
-  inputSchema: { path: z.string(), old_text: z.string(), new_text: z.string() }
-}, async ({ path, old_text, new_text }) => jsonResult(repo.patchDocument(path, old_text, new_text)));
+  description: 'Patch an indexed Markdown document with targeted text replacement. Use for small doc corrections; pass expected_checksum from read_doc so the patch fails if the document changed since it was read.',
+  inputSchema: { path: z.string(), old_text: z.string(), new_text: z.string(), expected_checksum: z.string().optional() }
+}, async ({ path, old_text, new_text, expected_checksum }) => jsonResult(repo.patchDocument(path, old_text, new_text, expected_checksum)));
 
 server.registerTool('move_doc', {
   description: 'Move an indexed Markdown document inside the data root and update its document record plus related long_index memory paths. Use after manual reclassification or cleanup.',

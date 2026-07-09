@@ -340,6 +340,7 @@ export class KnowledgeRepository {
   private updateExistingDocument(existing: unknown, input: WriteDocumentInput): DocumentRecord {
     const current = mapDocument(existing);
     const absolutePath = resolveDataPath(this.config.dataRoot, current.path);
+    this.assertDocumentUnchanged(current.path, input.expected_checksum);
     const updated: DocumentRecord = {
       ...current,
       project: input.project ?? current.project,
@@ -364,7 +365,9 @@ export class KnowledgeRepository {
     if (!fs.existsSync(absolutePath)) throw new Error(`Document not found: ${docPath}`);
     const parsed = readMarkdownContent(absolutePath);
     const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
-    return { record: row ? mapDocument(row) : undefined, content: parsed.content, data: parsed.data, relative_path: normalized, absolute_path: absolutePath };
+    // read_doc 要返回当前文件正文的指纹，而不是只信数据库缓存；手动编辑 Markdown 后 AI 才能拿到可用于乐观锁的最新 checksum。
+    const record = row ? { ...mapDocument(row), checksum: checksum(parsed.content) } : undefined;
+    return { record, content: parsed.content, data: parsed.data, relative_path: normalized, absolute_path: absolutePath };
   }
 
   dataRelativePathFromExternalImport(project: string, sourcePath: string, baseDir?: string): string {
@@ -373,10 +376,11 @@ export class KnowledgeRepository {
     return `docs/projects/${project}/imports/${relative}`;
   }
 
-  patchDocument(docPath: string, oldText: string, newText: string): DocumentRecord {
+  patchDocument(docPath: string, oldText: string, newText: string, expectedChecksum?: string): DocumentRecord {
     const normalized = this.normalizeDataPath(docPath);
     const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
     const parsed = readMarkdownContent(absolutePath);
+    this.assertDocumentUnchanged(normalized, expectedChecksum, parsed.content);
     if (!parsed.content.includes(oldText)) throw new Error('old_text not found in document content.');
     const nextContent = parsed.content.replace(oldText, newText);
     const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
@@ -539,6 +543,18 @@ export class KnowledgeRepository {
 
   private normalizeDataPath(inputPath: string): string {
     return inputPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  }
+
+  private assertDocumentUnchanged(docPath: string, expectedChecksum?: string, currentContent?: string): void {
+    if (!expectedChecksum) return;
+    const normalized = this.normalizeDataPath(docPath);
+    const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
+    const content = currentContent ?? readMarkdownContent(absolutePath).content;
+    const actualChecksum = checksum(content);
+    // 这是文档写入的乐观锁：AI 基于 read_doc 看到的 checksum 修改；若用户或其它进程已改正文，拒绝覆盖并要求重读。
+    if (actualChecksum !== expectedChecksum) {
+      throw new Error(`Document changed since last read. Please call read_doc again before modifying: ${normalized}`);
+    }
   }
 
   private insertDocumentRecord(record: DocumentRecord, content: string): void {

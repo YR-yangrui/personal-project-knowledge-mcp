@@ -102,11 +102,11 @@
     },
     {
       "name": "read_doc",
-      "description": "Read Markdown document body by data-root-relative path."
+      "description": "Read Markdown document body by data-root-relative path, including the current checksum for safe edits."
     },
     {
       "name": "write_doc",
-      "description": "Write and index a Markdown document."
+      "description": "Write and index a Markdown document; pass expected_checksum when replacing an existing document."
     },
     {
       "name": "resolve_doc_path",
@@ -114,7 +114,7 @@
     },
     {
       "name": "patch_doc",
-      "description": "Replace text in an indexed Markdown document."
+      "description": "Replace text in an indexed Markdown document; pass expected_checksum from read_doc to detect concurrent edits."
     },
     {
       "name": "move_doc",
