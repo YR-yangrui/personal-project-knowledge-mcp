@@ -21,6 +21,15 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 - 构建 TypeScript。
 - 初始化数据目录和 `config.yaml`。
 - 不写入任何特定客户端配置。
+- 提示安装者为目标 AI 客户端添加会话启动 hook，以便自动注入记忆上下文。
+
+如果你是让 AI 代为安装，安装完成后请直接要求 AI 继续完成 hook 接入：
+
+```text
+请为当前 AI 客户端添加 personal-project-knowledge-mcp 的会话启动 hook，让新会话自动注入 build_context 生成的短记忆和长记忆索引。
+```
+
+对于 Codex，推荐直接使用 `scripts/install-codex.ps1` 或通用安装参数 `-InstallCodexAdapter`，它会默认写入 `SessionStart` hook。其他客户端需要按各自 hook / startup context 机制接入；若客户端没有 hook 能力，则需要在会话开始时主动调用 `build_context` 或读取 `context://personal-project-knowledge/project/{project}`。
 
 ## 数据目录
 
@@ -108,12 +117,26 @@ node dist/index.js
 }
 ```
 
+通用 MCP 配置只负责启动 server，不保证记忆会自动进入会话上下文。要实现“新会话一开始就看到记忆”，目标客户端还需要额外配置会话启动注入：
+
+- 优先：添加 session-start / startup hook，运行本项目的上下文加载脚本或调用 `build_context`。
+- Codex：运行 `scripts/install-codex.ps1`，默认安装 `SessionStart` hook。
+- 其他客户端：让安装 AI 根据客户端能力，把 `build_context` 结果作为会话前置上下文；如果无法配置 hook，就在每次会话开始主动调用 `build_context`。
+
 通用产物：
 
 - `manifest.json`：包级 MCP plugin 清单。
 - `plugin/personal-project-knowledge/manifest.json`：可移植 plugin 描述。
 - `skills/personal-project-knowledge/SKILL.md`：可移植 skill，适用于支持 skill/指令包的 AI 客户端。
 - `skills/personal-project-knowledge-config/SKILL.md`：配置管理 skill，指导修改 `config.yaml`、短长转换阈值和自定义语义分类。
+
+首次安装或刚接入 MCP 后，建议直接对 AI 说：
+
+```text
+我刚首次安装 personal-project-knowledge-mcp，请调用 personal-project-knowledge-config skill 带我完成配置。
+```
+
+AI 应先使用配置 Skill 展示配置菜单，确认 dataRoot、短长记忆阈值、上下文预算和语义分类后，再进入日常记忆/文档使用。
 
 ## Codex 适配安装
 
@@ -139,6 +162,115 @@ startup_timeout_sec = 120
 ```
 
 安装脚本会自动备份原 Codex 配置，安装后需要重启客户端。
+
+默认还会安装 `SessionStart` hook：
+
+```toml
+[[hooks.SessionStart]]
+matcher = "startup|resume|clear|compact"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "E:/Projects/personal-project-knowledge-mcp/scripts/codex-session-start.ps1" -Mode "inline"'
+```
+
+这个 hook 会运行 `scripts/codex-session-start.ps1`，在会话启动、恢复、清空或压缩后加载当前项目的短记忆和长记忆索引。Codex command hook 目前主要通过 stdout 把内容交给会话，因此 stdout 既是“注入上下文”的通道，也是终端可能看到的输出通道。
+
+### SessionStart 输出模式
+
+安装脚本通过 `-SessionStartOutputMode` 控制 hook 输出模式：
+
+| 模式 | 终端输出 | 会话效果 | 适用场景 |
+|---|---|---|---|
+| `inline` | 输出完整 Markdown 上下文 | Codex 启动时可直接看到完整短记忆和长记忆索引 | 默认模式；最强自动注入，但终端会显示记忆内容 |
+| `file` | 只输出很短的上下文文件路径提示 | 完整上下文写入 session artifact；需要细节时读取提示里的文件 | 推荐降噪模式；避免终端刷屏，同时保留上下文入口 |
+| `silent` | 不输出 | 只生成 session artifact；不会通过 stdout 自动注入全文 | 只想保留产物、不需要启动注入时使用 |
+
+默认安装等价于：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode inline
+```
+
+如果希望降低启动时的终端输出，推荐切到 `file`：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode file
+```
+
+如果想完全静默：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode silent
+```
+
+注意：`silent` 不会把记忆全文自动注入当前会话。若目标是“终端不刷整段记忆，但仍能让 AI 找到上下文”，优先使用 `file`。
+
+### 切换、禁用和临时覆盖
+
+已经安装过 Codex adapter 时，可以重复运行 `install-codex.ps1` 切换模式。脚本会先备份 `%USERPROFILE%\.codex\config.toml`，再替换本项目管理的 MCP 配置和 hook 块。
+
+切回完整自动注入：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode inline
+```
+
+改成降噪文件指针：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode file
+```
+
+改成完全静默：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SessionStartOutputMode silent
+```
+
+若只想安装 MCP/Skill 而不自动注入记忆，可使用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1 -SkipSessionStartHook
+```
+
+若只想临时覆盖某次 hook 运行的模式，可以在启动 Codex 前设置环境变量：
+
+```powershell
+$env:PPKM_CODEX_SESSION_START_MODE = "file"
+codex
+```
+
+环境变量只接受 `inline`、`file`、`silent`；非法值会被忽略，继续使用 hook 命令里的 `-Mode`。
+
+### 直接运行 hook 脚本
+
+排查或手动生成上下文时，可以直接运行 hook 脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-session-start.ps1 -Mode file
+```
+
+可选参数：
+
+| 参数 | 说明 |
+|---|---|
+| `-Cwd` | 指定项目目录；不传时优先读取 Codex hook payload 中的 cwd，最后回退到当前工作目录 |
+| `-Project` | 指定知识库项目名；不传时按 cwd 自动识别 |
+| `-Query` | 传给上下文构建逻辑的查询词，用于带问题加载相关上下文 |
+| `-Mode` | 输出模式：`inline`、`file`、`silent` |
+
+示例：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-session-start.ps1 -Cwd "E:\Projects\personal-project-knowledge-mcp" -Project "personal-project-knowledge-mcp" -Mode inline
+```
+
+如果提示 `Run npm run build`，说明 `dist/scripts/hook-load.js` 或 `dist/scripts/hook-start.js` 不存在，需要先执行：
+
+```powershell
+npm run build
+```
 
 也可以用通用安装顺便安装 Codex adapter：
 
@@ -205,6 +337,7 @@ powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1 -RemoveData -Forc
 当前提供：
 
 - Server instructions：默认使用指南，客户端初始化 MCP server 时即可获取。
+- Codex SessionStart hook：Codex adapter 安装后默认自动注入当前项目短记忆和长记忆索引。
 - Prompt `use_personal_project_knowledge`：载入默认指南 + 当前项目短记忆 + 长记忆索引，可传 `project`、`cwd`、`query`。
 - Resource `guide://personal-project-knowledge/usage`：默认使用指南，说明应优先用本 MCP 管理记忆和文档。
 - Resource `storage://personal-project-knowledge/locations`：dataRoot、文档目录、记忆目录和路径规则。
@@ -297,4 +430,4 @@ npm run verify:web
 - 长记忆只自动载入标题、摘要、路径，不代表正文已读。
 - 文档正文必须通过 `read_doc` 按需读取。
 - 超过配置长度的短记忆会被拒绝，应改写成文档 + 长索引。
-- 自动会话注入 hook 已移除；客户端应通过 MCP instructions、tools/resources/prompts 或通用 skill/plugin 获取使用说明。
+- Codex adapter 默认安装会话启动 hook 自动注入记忆；非 Codex 客户端仍需通过 MCP instructions、tools/resources/prompts 或通用 skill/plugin 获取上下文。

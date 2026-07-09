@@ -11,11 +11,25 @@ $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $DistIndex = Join-Path $Root "dist\index.js"
 $ConfigPath = Join-Path $DataRoot "config.yaml"
 
+function Invoke-CheckedNative {
+  param(
+    [string]$Command,
+    [string[]]$Arguments
+  )
+
+  # Native commands do not always honor ErrorActionPreference in Windows
+  # PowerShell, so fail fast before writing install artifacts.
+  & $Command @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Command failed with exit code $LASTEXITCODE"
+  }
+}
+
 Write-Host "[1/4] Preparing project dependencies..."
 Push-Location $Root
 try {
   if (-not $SkipNpmInstall) {
-    npm install
+    Invoke-CheckedNative "npm" @("install")
   }
   else {
     Write-Host "npm install skipped."
@@ -23,7 +37,7 @@ try {
 
   if (-not $SkipBuild) {
     Write-Host "[2/4] Building TypeScript..."
-    npm run build
+    Invoke-CheckedNative "npm" @("run", "build")
   }
   else {
     Write-Host "[2/4] Build skipped."
@@ -59,7 +73,7 @@ semanticTypes:
   bugfix:
     default_load_level: long_index
     default_scope: project
-    description: "Bug 修复记录；默认仅搜索，不占启动上下文。"
+    description: "Bug fix records; searchable by default, not loaded into startup context."
     searchable: true
     auto_load_index: false
     show_in_context: false
@@ -85,4 +99,8 @@ $entry = $DistIndex.Replace("\", "/")
 Write-Host "MCP server command: $node"
 Write-Host "MCP server args: $entry"
 Write-Host "Data root: $DataRoot"
-Write-Host "For Codex adapter install: powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1"
+Write-Host "First-time setup: ask your AI assistant to use the personal-project-knowledge-config skill and guide you through configuration."
+Write-Host "Suggested prompt: I just installed personal-project-knowledge-mcp for the first time. Please use the personal-project-knowledge-config skill to guide setup."
+Write-Host "Session memory injection: generic install does not modify client hooks automatically."
+Write-Host "If an AI assistant is installing this MCP for you, ask it to add a session-start hook that runs scripts/codex-session-start.ps1 or an equivalent build_context loader for your client."
+Write-Host "For Codex adapter install with automatic session memory loading: powershell -ExecutionPolicy Bypass -File scripts/install-codex.ps1"

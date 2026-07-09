@@ -52,6 +52,16 @@ const hyphenDoc = repo.writeDocument({
   content: '# update-doc skill\n\n搜索 update-doc 时不能报 no such column: doc。\n'
 });
 repo.createOrUpdateDocIndex(hyphenDoc.path);
+const overwrittenDoc = repo.writeDocument({
+  project: 'ProjectN',
+  path: hyphenDoc.path,
+  semantic_type: 'module_doc',
+  title: 'update-doc skill updated',
+  brief: '用于验证 write_doc 覆盖已有路径时更新索引记录而不是触发 UNIQUE 约束。',
+  tags: ['update-doc', 'verify', 'overwrite'],
+  content: '# update-doc skill updated\n\nwrite_doc 覆盖同一路径应保持数据库和正文一致。\n'
+});
+const overwrittenDocRead = repo.readDocument(hyphenDoc.path);
 const hyphenDocResults = repo.searchDocs({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const hyphenMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const storageInfo = repo.getStorageInfo('ProjectN');
@@ -145,6 +155,8 @@ if (memoryResults.length === 0) failures.push('Memory search returned no results
 if (docResults.length === 0) failures.push('Doc search returned no results.');
 if (hyphenDocResults.length === 0) failures.push('Hyphen doc search returned no results.');
 if (hyphenMemoryResults.length === 0) failures.push('Hyphen memory search returned no results.');
+if (overwrittenDoc.id !== hyphenDoc.id) failures.push('writeDocument overwrite created a new document id.');
+if (!overwrittenDocRead.content.includes('write_doc 覆盖同一路径应保持数据库和正文一致。')) failures.push('writeDocument overwrite did not update Markdown content.');
 if (!storageInfo.project_documents_root?.includes('ProjectN')) failures.push('Storage info did not include project document root.');
 if (!resolvedBeforeMove.absolute_path.endsWith('update-doc.md')) failures.push('resolveDocumentPath did not return absolute doc path.');
 if (!fs.existsSync(resolvedAfterMove.absolute_path)) failures.push('moveDocument did not move the Markdown file.');

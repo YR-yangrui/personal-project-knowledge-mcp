@@ -5,6 +5,8 @@ description: Interactive configuration-console skill for personal-project-knowle
 
 # Personal Project Knowledge Config Console
 
+Also use this skill when the user has just installed, enabled, connected, or initialized `personal-project-knowledge-mcp` for the first time. In that first-install case, proactively show the configuration menu and ask the user to choose or confirm settings before normal memory/document usage.
+
 Act like a configuration program for `personal-project-knowledge-mcp`. Do not answer as a loose explanation. Always use the fixed console-style layout below so the user can see available configuration functions and choose the next action.
 
 ## Required First Response Format

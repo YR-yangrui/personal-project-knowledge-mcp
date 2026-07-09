@@ -27,7 +27,7 @@
     {
       "name": "personal-project-knowledge-config",
       "path": "../../skills/personal-project-knowledge-config",
-      "description": "Configuration guidance skill for memory sizing, budgets, data root, and custom semantic types."
+      "description": "First-time setup and configuration guidance skill for memory sizing, budgets, data root, and custom semantic types."
     }
   ],
   "resources": [

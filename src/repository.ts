@@ -302,9 +302,12 @@ export class KnowledgeRepository {
   }
 
   writeDocument(input: WriteDocumentInput): DocumentRecord {
+    const relativePath = this.normalizeDataPath(input.path);
+    const existing = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(relativePath);
+    if (existing) return this.updateExistingDocument(existing, input);
+
     const id = createId('doc');
     const now = nowIso();
-    const relativePath = this.normalizeDataPath(input.path);
     const absolutePath = resolveDataPath(this.config.dataRoot, relativePath);
     const record: DocumentRecord = {
       id,
@@ -321,13 +324,9 @@ export class KnowledgeRepository {
       created_at: now,
       updated_at: now
     };
+    this.insertDocumentRecord(record, input.content);
+    // 写正文必须放在唯一约束检查之后，避免数据库失败但 Markdown 已覆盖造成状态不一致。
     writeDocumentMarkdown(absolutePath, record, input.content);
-    this.db.prepare(`INSERT INTO documents (
-      id, project, path, semantic_type, title, brief, tags, status, checksum,
-      last_verified_commit, index_memory_id, created_at, updated_at
-    ) VALUES (@id, @project, @path, @semantic_type, @title, @brief, @tags, @status, @checksum,
-      @last_verified_commit, @index_memory_id, @created_at, @updated_at)`).run({ ...record, tags: json(record.tags) });
-    this.upsertDocumentFts(record, input.content);
     return record;
   }
 
@@ -335,9 +334,12 @@ export class KnowledgeRepository {
     const normalized = this.normalizeDataPath(input.path);
     const existing = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
     if (!existing) return this.writeDocument(input);
+    return this.updateExistingDocument(existing, input);
+  }
 
+  private updateExistingDocument(existing: unknown, input: WriteDocumentInput): DocumentRecord {
     const current = mapDocument(existing);
-    const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
+    const absolutePath = resolveDataPath(this.config.dataRoot, current.path);
     const updated: DocumentRecord = {
       ...current,
       project: input.project ?? current.project,
@@ -350,13 +352,9 @@ export class KnowledgeRepository {
       last_verified_commit: input.last_verified_commit ?? current.last_verified_commit,
       updated_at: nowIso()
     };
+    this.updateDocumentRecord(updated, input.content);
+    // 先更新索引记录，再覆盖文件，避免 SQL 失败时留下已更新正文和旧数据库记录。
     writeDocumentMarkdown(absolutePath, updated, input.content);
-    this.db.prepare(`UPDATE documents SET
-      project=@project, semantic_type=@semantic_type, title=@title, brief=@brief, tags=@tags,
-      status=@status, checksum=@checksum, last_verified_commit=@last_verified_commit,
-      index_memory_id=@index_memory_id, updated_at=@updated_at
-      WHERE id=@id`).run({ ...updated, tags: json(updated.tags) });
-    this.upsertDocumentFts(updated, input.content);
     return updated;
   }
 
@@ -384,9 +382,10 @@ export class KnowledgeRepository {
     const row = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
     if (!row) throw new Error(`Document is not indexed: ${docPath}`);
     const record = { ...mapDocument(row), checksum: checksum(nextContent), updated_at: nowIso() };
-    writeDocumentMarkdown(absolutePath, record, nextContent);
     this.db.prepare('UPDATE documents SET checksum=@checksum, updated_at=@updated_at WHERE id=@id').run(record);
     this.upsertDocumentFts(record, nextContent);
+    // patch_doc 也保持同样顺序：数据库失败时不提前覆盖用户的 Markdown 正文。
+    writeDocumentMarkdown(absolutePath, record, nextContent);
     return record;
   }
 
@@ -540,6 +539,24 @@ export class KnowledgeRepository {
 
   private normalizeDataPath(inputPath: string): string {
     return inputPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  }
+
+  private insertDocumentRecord(record: DocumentRecord, content: string): void {
+    this.db.prepare(`INSERT INTO documents (
+      id, project, path, semantic_type, title, brief, tags, status, checksum,
+      last_verified_commit, index_memory_id, created_at, updated_at
+    ) VALUES (@id, @project, @path, @semantic_type, @title, @brief, @tags, @status, @checksum,
+      @last_verified_commit, @index_memory_id, @created_at, @updated_at)`).run({ ...record, tags: json(record.tags) });
+    this.upsertDocumentFts(record, content);
+  }
+
+  private updateDocumentRecord(record: DocumentRecord, content: string): void {
+    this.db.prepare(`UPDATE documents SET
+      project=@project, semantic_type=@semantic_type, title=@title, brief=@brief, tags=@tags,
+      status=@status, checksum=@checksum, last_verified_commit=@last_verified_commit,
+      index_memory_id=@index_memory_id, updated_at=@updated_at
+      WHERE id=@id`).run({ ...record, tags: json(record.tags) });
+    this.upsertDocumentFts(record, content);
   }
 
   private shouldLoadIndexInContext(memory: MemoryRecord): boolean {

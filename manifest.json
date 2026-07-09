@@ -26,7 +26,7 @@
     {
       "name": "personal-project-knowledge-config",
       "path": "skills/personal-project-knowledge-config",
-      "description": "Skill for safely changing config.yaml, memory sizing thresholds, context budgets, and custom semantic types/categories."
+      "description": "Skill for first-time setup and safely changing config.yaml, memory sizing thresholds, context budgets, and custom semantic types/categories."
     }
   ],
   "resources": [

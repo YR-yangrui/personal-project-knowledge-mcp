@@ -9,11 +9,11 @@
   "interface": {
     "displayName": "Personal Project Knowledge",
     "shortDescription": "Local memory and Markdown knowledge base.",
-    "longDescription": "Installs the portable personal-project-knowledge MCP and skills into Codex. The shared skills manage auto-loaded memories, indexed Markdown docs, decisions, requirement changes, preferences, project rules, and safe configuration changes.",
+    "longDescription": "Installs the portable personal-project-knowledge MCP and skills into Codex. On first install, use the config skill to guide data root, memory sizing, budgets, and semantic type setup. The shared skills manage auto-loaded memories, indexed Markdown docs, decisions, requirement changes, preferences, project rules, and safe configuration changes.",
     "developerName": "Personal",
     "category": "Productivity",
     "capabilities": ["mcp", "skills"],
-    "defaultPrompt": "Use personal project knowledge to recall or update memories and project documentation."
+    "defaultPrompt": "If this MCP was just installed, use personal-project-knowledge-config to guide setup; otherwise use personal project knowledge to recall or update memories and project documentation."
   },
   "mcpServers": "./.mcp.json"
 }

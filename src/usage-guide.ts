@@ -4,6 +4,7 @@ export const usageGuideMarkdown = `# Personal Project Knowledge MCP 使用指南
 
 ## 优先使用规则
 
+- 首次安装或刚接入本 MCP 时，AI 应主动切换/调用 \`personal-project-knowledge-config\` skill，引导用户完成 dataRoot、短长记忆阈值、上下文预算和语义分类配置；如果用户不确定，先执行“当前配置检查”。
 - 遇到“记住、偏好、习惯、项目规则、踩坑、约定”时，优先使用本 MCP 写入或更新记忆。
 - 遇到“文档、设计、决策记录、需求变动、分析沉淀、长内容”时，优先使用本 MCP 写入 Markdown 文档，并创建或更新长记忆索引。
 - 需要查历史经验、项目规则、需求变更、已有文档时，优先使用本 MCP 的记忆 / 文档搜索；代码定位仍遵循当前项目自己的代码检索规则。
@@ -19,6 +20,7 @@ export const usageGuideMarkdown = `# Personal Project Knowledge MCP 使用指南
 ## 常用操作
 
 - 会话开始：优先使用 MCP instructions；需要项目知识时调用 build_context。
+- 首次安装后：调用 \`personal-project-knowledge-config\` skill，并展示配置菜单让用户确认配置。
 - 查看自动载入内容：list_loaded_memory。
 - 写入记忆：write_memory，短记忆必须简短；长内容先写文档。
 - 搜索记忆：search_memory，必要时 get_memory。

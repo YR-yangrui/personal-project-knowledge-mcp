@@ -19,6 +19,17 @@ Prefer the MCP over ad-hoc files whenever the task is about:
 
 Do not use this MCP for code symbol discovery unless the user is asking about stored docs/memory. Use the current project's code-discovery tools for code navigation.
 
+## First Install Routing
+
+When the user has just installed, enabled, connected, or initialized this MCP for the first time, do not start by writing memories. First invoke or switch to the `personal-project-knowledge-config` skill and guide the user through configuration. The config flow should help the user confirm:
+
+- data root and `PPKM_DATA_ROOT`
+- short/long memory conversion thresholds
+- startup context budgets and related-result counts
+- custom semantic types/categories
+
+If the user is unsure, recommend the config skill's "current configuration check" first.
+
 ## Workflow
 
 1. Determine the project from the current working directory or user-provided project name.
