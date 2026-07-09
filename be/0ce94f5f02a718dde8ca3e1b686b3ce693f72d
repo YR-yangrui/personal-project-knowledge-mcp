@@ -1,0 +1,61 @@
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_ade85c348aaaac::t_90c32621d24f8f 40-44,51
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_ade85c348aaaac::t_3adde8c436f82a 31-35,61
+plugin/personal-project-knowledge/manifest.json
+  s_dd01f2d4cab624::t_c3623e9e688117 69-73
+plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_6f9d65bc2d69f6 29-31,38
+plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_77605d96f9bc01 28-32,52
+skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_d1ef267a7475d3 40-44,51
+skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_c19ee3f7b0c006 31-35,61
+src/db.ts
+  s_dd01f2d4cab624::t_2c91b9e4dcb0dd 74-90,98-101
+src/index.ts
+  s_dd01f2d4cab624::t_f2fcf5a6ef6b98 27-29,168,177,179-186,196-210,213,217-239,241-281
+src/repository.ts
+  s_dd01f2d4cab624::t_6b3a3d2312a6b9 9-19,81-99,359,389,410,424,454-536,590,637-639,651,679-692
+src/scripts/verify.ts
+  s_dd01f2d4cab624::t_f2c9abbb8bc861 94-98,100,125-127,129,157-187,192-202,204-205,308-314,319-321
+src/types.ts
+  s_dd01f2d4cab624::t_754680414d1143 48-66,117-143
+manifest.json
+  s_147ed1a8382910::t_97e1f8574b3bb7 109,117,121-141
+src/usage-guide.ts
+  s_147ed1a8382910::t_0852204dddeecf 30,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "be0ce94f5f02a718dde8ca3e1b686b3ce693f72d",
+  "prompts": {},
+  "sessions": {
+    "s_147ed1a8382910": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4579-0d1c-7461-9577-a9515b77228f",
+        "model": "unknown"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_ade85c348aaaac": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f407a-2d05-7fc3-8ad1-b2f49b12e392",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
