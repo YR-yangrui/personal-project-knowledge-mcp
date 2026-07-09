@@ -1,0 +1,57 @@
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_ade85c348aaaac::t_64c058038a5115 39-43,49
+codex-plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_ade85c348aaaac::t_569c2af3f038ce 10,27,29,55
+plugin/personal-project-knowledge/skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_229eea66ece56c 28-30,36
+plugin/personal-project-knowledge/skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_c8092bd25286e0 10,26-27,46
+skills/personal-project-knowledge/SKILL.md
+  s_dd01f2d4cab624::t_478a3226337fd4 39-43,49
+skills/personal-project-knowledge/references/tool-routing.md
+  s_dd01f2d4cab624::t_85a67d14729bf2 10,27,29,55
+src/index.ts
+  s_dd01f2d4cab624::t_bb5427d613130e 165,175-176,186-188
+src/repository.ts
+  s_dd01f2d4cab624::t_3907b5dcc37144 343,368-370,379,383,548-559
+src/scripts/verify.ts
+  s_dd01f2d4cab624::t_02bd07d83b937a 65-148,244-256
+src/types.ts
+  s_dd01f2d4cab624::t_3315d6e41a96e4 97
+manifest.json
+  s_147ed1a8382910::t_9df5e63d0164fc 105,109,117
+src/usage-guide.ts
+  s_147ed1a8382910::t_01eba8f3c13ebc 29,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "57e8c7013867abc6e085f71201ee2d1d508f5462",
+  "prompts": {},
+  "sessions": {
+    "s_147ed1a8382910": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4579-0d1c-7461-9577-a9515b77228f",
+        "model": "unknown"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_ade85c348aaaac": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f407a-2d05-7fc3-8ad1-b2f49b12e392",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
