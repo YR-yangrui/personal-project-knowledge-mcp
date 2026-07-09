@@ -25,6 +25,11 @@
 
 - `write_doc`: create or replace indexed Markdown. When replacing an existing document, pass `expected_checksum` from the latest `read_doc` to avoid overwriting concurrent edits.
 - `patch_doc`: targeted replacement in an indexed Markdown document. Prefer this for small updates and pass `expected_checksum`; if the document changed, reread and merge instead of retrying blindly.
+- `record_doc_change`: record maintenance history in the database instead of adding Markdown changelog text.
+- `list_doc_changes`: query database-managed maintenance records; default returns active records only.
+- `update_doc_change`: correct a maintenance record.
+- `deprecate_doc_change`: mark an obsolete maintenance record as deprecated.
+- `delete_doc_change`: soft-delete a maintenance record.
 - `create_or_update_doc_index`: make/update the auto-loaded long index for a document.
 - `promote_doc_to_long_memory`: alias for document indexing.
 
@@ -44,5 +49,6 @@
 - Do not put long Markdown bodies in short memory.
 - Do not answer from long index details until `read_doc` has loaded the body.
 - Do not edit an existing document from stale context; call `read_doc`, pass `expected_checksum`, and reread if the MCP reports that the document changed.
+- Do not append manual update logs/changelogs to Markdown bodies; use document change tools so history can be filtered, deprecated, or deleted.
 - Prefer updating/deprecating old memories over writing contradictory new ones.
 - If the user says "记住", write memory immediately unless it is clearly too long; then write document + long index.

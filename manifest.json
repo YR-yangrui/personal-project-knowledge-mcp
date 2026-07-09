@@ -106,7 +106,7 @@
     },
     {
       "name": "write_doc",
-      "description": "Write and index a Markdown document; pass expected_checksum when replacing an existing document."
+      "description": "Write and index a Markdown document; pass expected_checksum for safe edits and optional change_summary to record maintenance history."
     },
     {
       "name": "resolve_doc_path",
@@ -114,11 +114,31 @@
     },
     {
       "name": "patch_doc",
-      "description": "Replace text in an indexed Markdown document; pass expected_checksum from read_doc to detect concurrent edits."
+      "description": "Replace text in an indexed Markdown document; pass expected_checksum from read_doc and optional change_summary for maintenance history."
     },
     {
       "name": "move_doc",
-      "description": "Move an indexed document within the data root and update related long indexes."
+      "description": "Move an indexed document within the data root and update related long indexes and document change paths."
+    },
+    {
+      "name": "record_doc_change",
+      "description": "Record document maintenance history in the database instead of appending changelog text to Markdown."
+    },
+    {
+      "name": "list_doc_changes",
+      "description": "List database-managed document maintenance records."
+    },
+    {
+      "name": "update_doc_change",
+      "description": "Update a database-managed document maintenance record."
+    },
+    {
+      "name": "deprecate_doc_change",
+      "description": "Mark a document maintenance record as deprecated."
+    },
+    {
+      "name": "delete_doc_change",
+      "description": "Soft-delete a document maintenance record."
     },
     {
       "name": "create_or_update_doc_index",

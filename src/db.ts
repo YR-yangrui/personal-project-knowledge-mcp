@@ -71,6 +71,23 @@ function migrate(db: Database.Database): void {
       tags
     );
 
+    CREATE TABLE IF NOT EXISTS document_changes (
+      id TEXT PRIMARY KEY,
+      document_id TEXT,
+      project TEXT NOT NULL,
+      path TEXT NOT NULL,
+      change_type TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      details TEXT,
+      source TEXT NOT NULL DEFAULT 'manual',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      obsolete_reason TEXT,
+      related_commit TEXT,
+      related_session TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);
     CREATE INDEX IF NOT EXISTS idx_memories_status ON memories(status);
     CREATE INDEX IF NOT EXISTS idx_memories_load_level ON memories(load_level);
@@ -78,5 +95,9 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project);
     CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
     CREATE INDEX IF NOT EXISTS idx_documents_semantic_type ON documents(semantic_type);
+    CREATE INDEX IF NOT EXISTS idx_document_changes_path ON document_changes(path);
+    CREATE INDEX IF NOT EXISTS idx_document_changes_project ON document_changes(project);
+    CREATE INDEX IF NOT EXISTS idx_document_changes_status ON document_changes(status);
+    CREATE INDEX IF NOT EXISTS idx_document_changes_type ON document_changes(change_type);
   `);
 }

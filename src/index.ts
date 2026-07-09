@@ -24,6 +24,9 @@ function jsonResult(value: unknown) {
   };
 }
 
+const documentChangeTypeSchema = z.enum(['create', 'patch', 'rewrite', 'move', 'metadata', 'cleanup', 'deprecate', 'note']);
+const statusSchema = z.enum(['active', 'stale', 'deprecated', 'deleted']);
+
 server.registerTool('build_context', {
   description: 'Use at the start of a task or before answering from stored knowledge. Builds project context: short memories are full content and can be trusted directly; long memories/documents are index-only and require read_doc for details.',
   inputSchema: {
@@ -162,7 +165,7 @@ server.registerTool('read_doc', {
 }, async ({ path }) => jsonResult(repo.readDocument(path)));
 
 server.registerTool('write_doc', {
-  description: 'Write and index a Markdown document for long-form knowledge: designs, decisions, requirement changes, investigation notes, imported docs, and session artifacts. Path is relative to the data root. When replacing an existing document, pass expected_checksum from read_doc to fail safely if the file changed since it was read.',
+  description: 'Write and index a Markdown document for long-form knowledge: designs, decisions, requirement changes, investigation notes, imported docs, and session artifacts. Path is relative to the data root. When replacing an existing document, pass expected_checksum from read_doc to fail safely if the file changed since it was read. Optionally pass change_summary or record_change to store a maintenance record outside the Markdown body.',
   inputSchema: {
     project: z.string().optional(),
     path: z.string(),
@@ -171,9 +174,16 @@ server.registerTool('write_doc', {
     brief: z.string().optional(),
     content: z.string(),
     tags: z.array(z.string()).optional(),
-    status: z.enum(['active', 'stale', 'deprecated', 'deleted']).optional(),
+    status: statusSchema.optional(),
     last_verified_commit: z.string().optional(),
-    expected_checksum: z.string().optional()
+    expected_checksum: z.string().optional(),
+    record_change: z.boolean().optional(),
+    change_type: documentChangeTypeSchema.optional(),
+    change_summary: z.string().optional(),
+    change_details: z.string().optional(),
+    change_source: z.string().optional(),
+    related_commit: z.string().optional(),
+    related_session: z.string().optional()
   }
 }, async (input) => jsonResult(repo.writeDocument(input)));
 
@@ -183,18 +193,92 @@ server.registerTool('resolve_doc_path', {
 }, async ({ path }) => jsonResult(repo.resolveDocumentPath(path)));
 
 server.registerTool('patch_doc', {
-  description: 'Patch an indexed Markdown document with targeted text replacement. Use for small doc corrections; pass expected_checksum from read_doc so the patch fails if the document changed since it was read.',
-  inputSchema: { path: z.string(), old_text: z.string(), new_text: z.string(), expected_checksum: z.string().optional() }
-}, async ({ path, old_text, new_text, expected_checksum }) => jsonResult(repo.patchDocument(path, old_text, new_text, expected_checksum)));
+  description: 'Patch an indexed Markdown document with targeted text replacement. Use for small doc corrections; pass expected_checksum from read_doc so the patch fails if the document changed since it was read. Optionally pass change_summary or record_change to store a maintenance record outside the Markdown body.',
+  inputSchema: {
+    path: z.string(),
+    old_text: z.string(),
+    new_text: z.string(),
+    expected_checksum: z.string().optional(),
+    record_change: z.boolean().optional(),
+    change_type: documentChangeTypeSchema.optional(),
+    change_summary: z.string().optional(),
+    change_details: z.string().optional(),
+    change_source: z.string().optional(),
+    related_commit: z.string().optional(),
+    related_session: z.string().optional()
+  }
+}, async ({ path, old_text, new_text, expected_checksum, ...changeOptions }) => jsonResult(repo.patchDocument(path, old_text, new_text, expected_checksum, changeOptions)));
 
 server.registerTool('move_doc', {
-  description: 'Move an indexed Markdown document inside the data root and update its document record plus related long_index memory paths. Use after manual reclassification or cleanup.',
+  description: 'Move an indexed Markdown document inside the data root and update its document record plus related long_index memory paths. Use after manual reclassification or cleanup. Optionally pass change_summary or record_change to store a maintenance record outside the Markdown body.',
   inputSchema: {
     old_path: z.string(),
     new_path: z.string(),
-    overwrite: z.boolean().optional()
+    overwrite: z.boolean().optional(),
+    record_change: z.boolean().optional(),
+    change_type: documentChangeTypeSchema.optional(),
+    change_summary: z.string().optional(),
+    change_details: z.string().optional(),
+    change_source: z.string().optional(),
+    related_commit: z.string().optional(),
+    related_session: z.string().optional()
   }
-}, async ({ old_path, new_path, overwrite }) => jsonResult(repo.moveDocument(old_path, new_path, { overwrite })));
+}, async ({ old_path, new_path, ...options }) => jsonResult(repo.moveDocument(old_path, new_path, options)));
+
+server.registerTool('record_doc_change', {
+  description: 'Record a document maintenance/change note in the database instead of appending changelog text to the Markdown body.',
+  inputSchema: {
+    path: z.string(),
+    project: z.string().optional(),
+    change_type: documentChangeTypeSchema,
+    summary: z.string(),
+    details: z.string().optional(),
+    source: z.string().optional(),
+    status: statusSchema.optional(),
+    related_commit: z.string().optional(),
+    related_session: z.string().optional()
+  }
+}, async (input) => jsonResult(repo.recordDocumentChange(input)));
+
+server.registerTool('list_doc_changes', {
+  description: 'List database-managed maintenance/change records for documents. Defaults to active records only; Markdown bodies do not include these records.',
+  inputSchema: {
+    path: z.string().optional(),
+    project: z.string().optional(),
+    change_type: documentChangeTypeSchema.optional(),
+    status: statusSchema.optional(),
+    limit: z.number().int().positive().max(100).optional()
+  }
+}, async (input) => jsonResult({ results: repo.listDocumentChanges(input) }));
+
+server.registerTool('update_doc_change', {
+  description: 'Patch a database-managed document maintenance/change record.',
+  inputSchema: {
+    id: z.string(),
+    patch: z.object({
+      path: z.string().optional(),
+      project: z.string().optional(),
+      change_type: documentChangeTypeSchema.optional(),
+      summary: z.string().optional(),
+      details: z.string().optional(),
+      source: z.string().optional(),
+      status: statusSchema.optional(),
+      obsolete_reason: z.string().optional(),
+      related_commit: z.string().optional(),
+      related_session: z.string().optional()
+    })
+  }
+}, async ({ id, patch }) => jsonResult(repo.updateDocumentChange(id, patch as any)));
+
+server.registerTool('deprecate_doc_change', {
+  description: 'Mark a document maintenance/change record as deprecated so normal list_doc_changes queries no longer return it.',
+  inputSchema: { id: z.string(), reason: z.string().optional() }
+}, async ({ id, reason }) => jsonResult(repo.deprecateDocumentChange(id, reason)));
+
+server.registerTool('delete_doc_change', {
+  description: 'Soft-delete a document maintenance/change record so normal list_doc_changes queries no longer return it.',
+  inputSchema: { id: z.string(), reason: z.string().optional() }
+}, async ({ id, reason }) => jsonResult(repo.deleteDocumentChange(id, reason)));
 
 server.registerTool('create_or_update_doc_index', {
   description: 'Create or update a long_index memory for an indexed document so its title/brief/path auto-loads while the long Markdown body remains read-on-demand.',

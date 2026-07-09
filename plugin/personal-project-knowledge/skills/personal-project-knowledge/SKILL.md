@@ -26,14 +26,16 @@ Do not use this MCP for code symbol discovery unless the user is asking about st
 3. For short durable facts, call `write_memory` with `load_level="short"`.
 4. For long content, call `write_doc`, then `create_or_update_doc_index`.
 5. Before modifying an existing document, call `read_doc` and pass its current `checksum` as `expected_checksum` to `patch_doc` or `write_doc`; if the checksum changed, reread and merge.
-6. For stale facts, call `update_memory` or `deprecate_memory`; do not leave contradictory active memories.
-7. For session outputs worth preserving, call `record_session_artifacts`.
+6. Do not maintain "Update Log" / "Changelog" sections inside Markdown bodies; use `record_doc_change`, `list_doc_changes`, `update_doc_change`, `deprecate_doc_change`, or `delete_doc_change`.
+7. For stale facts, call `update_memory` or `deprecate_memory`; do not leave contradictory active memories.
+8. For session outputs worth preserving, call `record_session_artifacts`.
 
 ## Memory Boundaries
 
 - Short memory: auto-loaded full text; use for concise preferences, rules, gotchas, and high-priority facts.
 - Long memory index: auto-loaded title/brief/path only; use for decisions, requirement changes, and long notes.
 - Document: Markdown body; search first, read with `read_doc` only when details are needed. Treat documents as time-sensitive and use `expected_checksum` when updating them.
+- Document change record: database-managed maintenance history; query only when needed so it does not pollute Markdown bodies or startup context.
 
 ## Tool Reference
 

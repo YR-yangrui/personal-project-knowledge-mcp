@@ -45,6 +45,25 @@ export interface DocumentRecord {
   updated_at: string;
 }
 
+export type DocumentChangeType = 'create' | 'patch' | 'rewrite' | 'move' | 'metadata' | 'cleanup' | 'deprecate' | 'note';
+
+export interface DocumentChangeRecord {
+  id: string;
+  document_id?: string | null;
+  project: string;
+  path: string;
+  change_type: DocumentChangeType;
+  summary: string;
+  details?: string | null;
+  source: string;
+  status: Status;
+  created_at: string;
+  updated_at: string;
+  obsolete_reason?: string | null;
+  related_commit?: string | null;
+  related_session?: string | null;
+}
+
 export interface StorageInfo {
   data_root: string;
   documents_root: string;
@@ -95,6 +114,33 @@ export interface WriteDocumentInput {
   status?: Status;
   last_verified_commit?: string;
   expected_checksum?: string;
+  record_change?: boolean;
+  change_type?: DocumentChangeType;
+  change_summary?: string;
+  change_details?: string;
+  change_source?: string;
+  related_commit?: string;
+  related_session?: string;
+}
+
+export interface WriteDocumentChangeInput {
+  path: string;
+  project?: string;
+  change_type: DocumentChangeType;
+  summary: string;
+  details?: string;
+  source?: string;
+  status?: Status;
+  related_commit?: string;
+  related_session?: string;
+}
+
+export interface SearchDocumentChangesInput {
+  path?: string;
+  project?: string;
+  change_type?: DocumentChangeType;
+  status?: Status;
+  limit?: number;
 }
 
 export interface SearchMemoryInput {

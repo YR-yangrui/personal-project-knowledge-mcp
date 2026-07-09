@@ -6,7 +6,17 @@ import { createId, nowIso } from './ids.js';
 import { ensureDir, memoryMarkdownPath, resolveDataPath, safeSegment, toRelativeDataPath } from './paths.js';
 import { readMarkdownContent, writeDocumentMarkdown, writeMemoryMarkdown } from './markdown.js';
 import type { AppConfig } from './config.js';
-import type { DocumentLocation, DocumentRecord, MemoryRecord, SearchDocResult, SearchDocsInput, SearchMemoryInput, SemanticTypeCount, StorageInfo, WriteDocumentInput, WriteMemoryInput } from './types.js';
+import type { DocumentChangeRecord, DocumentChangeType, DocumentLocation, DocumentRecord, MemoryRecord, SearchDocResult, SearchDocsInput, SearchDocumentChangesInput, SearchMemoryInput, SemanticTypeCount, Status, StorageInfo, WriteDocumentChangeInput, WriteDocumentInput, WriteMemoryInput } from './types.js';
+
+type DocumentChangeOptions = {
+  record_change?: boolean;
+  change_type?: DocumentChangeType;
+  change_summary?: string;
+  change_details?: string;
+  change_source?: string;
+  related_commit?: string;
+  related_session?: string;
+};
 
 function json(value: unknown): string {
   return JSON.stringify(value ?? []);
@@ -65,6 +75,25 @@ function mapDocument(row: any): DocumentRecord {
     index_memory_id: row.index_memory_id,
     created_at: row.created_at,
     updated_at: row.updated_at
+  };
+}
+
+function mapDocumentChange(row: any): DocumentChangeRecord {
+  return {
+    id: row.id,
+    document_id: row.document_id,
+    project: row.project,
+    path: row.path,
+    change_type: row.change_type,
+    summary: row.summary,
+    details: row.details,
+    source: row.source,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    obsolete_reason: row.obsolete_reason,
+    related_commit: row.related_commit,
+    related_session: row.related_session
   };
 }
 
@@ -327,6 +356,7 @@ export class KnowledgeRepository {
     this.insertDocumentRecord(record, input.content);
     // 写正文必须放在唯一约束检查之后，避免数据库失败但 Markdown 已覆盖造成状态不一致。
     writeDocumentMarkdown(absolutePath, record, input.content);
+    this.recordDocumentChangeIfRequested(record, 'create', input, `Created document: ${record.title}`);
     return record;
   }
 
@@ -356,6 +386,7 @@ export class KnowledgeRepository {
     this.updateDocumentRecord(updated, input.content);
     // 先更新索引记录，再覆盖文件，避免 SQL 失败时留下已更新正文和旧数据库记录。
     writeDocumentMarkdown(absolutePath, updated, input.content);
+    this.recordDocumentChangeIfRequested(updated, 'rewrite', input, `Rewrote document: ${updated.title}`);
     return updated;
   }
 
@@ -376,7 +407,7 @@ export class KnowledgeRepository {
     return `docs/projects/${project}/imports/${relative}`;
   }
 
-  patchDocument(docPath: string, oldText: string, newText: string, expectedChecksum?: string): DocumentRecord {
+  patchDocument(docPath: string, oldText: string, newText: string, expectedChecksum?: string, options: DocumentChangeOptions = {}): DocumentRecord {
     const normalized = this.normalizeDataPath(docPath);
     const absolutePath = resolveDataPath(this.config.dataRoot, normalized);
     const parsed = readMarkdownContent(absolutePath);
@@ -390,6 +421,7 @@ export class KnowledgeRepository {
     this.upsertDocumentFts(record, nextContent);
     // patch_doc 也保持同样顺序：数据库失败时不提前覆盖用户的 Markdown 正文。
     writeDocumentMarkdown(absolutePath, record, nextContent);
+    this.recordDocumentChangeIfRequested(record, 'patch', options, `Patched document: ${record.title}`);
     return record;
   }
 
@@ -417,6 +449,89 @@ export class KnowledgeRepository {
       return this.enrichDocResults(this.db.prepare(likeSql).all(params).map(mapDocument), input);
     }
     return this.enrichDocResults(this.db.prepare(`SELECT d.* FROM documents d ${where} ORDER BY d.updated_at DESC LIMIT @limit`).all(params).map(mapDocument), input);
+  }
+
+  recordDocumentChange(input: WriteDocumentChangeInput): DocumentChangeRecord {
+    const normalized = this.normalizeDataPath(input.path);
+    const docRow = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(normalized);
+    const doc = docRow ? mapDocument(docRow) : undefined;
+    const now = nowIso();
+    const record: DocumentChangeRecord = {
+      id: createId('docchg'),
+      document_id: doc?.id ?? null,
+      project: input.project ?? doc?.project ?? 'global',
+      path: normalized,
+      change_type: input.change_type,
+      summary: input.summary,
+      details: input.details ?? null,
+      source: input.source ?? 'manual',
+      status: input.status ?? 'active',
+      created_at: now,
+      updated_at: now,
+      obsolete_reason: null,
+      related_commit: input.related_commit ?? null,
+      related_session: input.related_session ?? null
+    };
+    this.db.prepare(`INSERT INTO document_changes (
+      id, document_id, project, path, change_type, summary, details, source, status,
+      created_at, updated_at, obsolete_reason, related_commit, related_session
+    ) VALUES (
+      @id, @document_id, @project, @path, @change_type, @summary, @details, @source, @status,
+      @created_at, @updated_at, @obsolete_reason, @related_commit, @related_session
+    )`).run(record);
+    return record;
+  }
+
+  listDocumentChanges(input: SearchDocumentChangesInput): DocumentChangeRecord[] {
+    const limit = Math.min(input.limit ?? 20, 100);
+    const filters: string[] = [];
+    const params: Record<string, unknown> = { limit };
+    if (input.path) { filters.push('path = @path'); params.path = this.normalizeDataPath(input.path); }
+    if (input.project) { filters.push('project = @project'); params.project = input.project; }
+    if (input.change_type) { filters.push('change_type = @change_type'); params.change_type = input.change_type; }
+    filters.push('status = @status');
+    params.status = input.status ?? 'active';
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    return this.db.prepare(`SELECT * FROM document_changes ${where} ORDER BY created_at DESC LIMIT @limit`)
+      .all(params).map(mapDocumentChange);
+  }
+
+  updateDocumentChange(id: string, patch: Partial<WriteDocumentChangeInput & { status: Status; obsolete_reason: string }>): DocumentChangeRecord {
+    const row = this.db.prepare('SELECT * FROM document_changes WHERE id = ?').get(id);
+    if (!row) throw new Error(`Document change not found: ${id}`);
+    const current = mapDocumentChange(row);
+    const nextPath = patch.path ? this.normalizeDataPath(patch.path) : current.path;
+    const docRow = this.db.prepare('SELECT * FROM documents WHERE path = ?').get(nextPath);
+    const doc = docRow ? mapDocument(docRow) : undefined;
+    const updated: DocumentChangeRecord = {
+      ...current,
+      document_id: doc?.id ?? current.document_id ?? null,
+      project: patch.project ?? doc?.project ?? current.project,
+      path: nextPath,
+      change_type: patch.change_type ?? current.change_type,
+      summary: patch.summary ?? current.summary,
+      details: patch.details ?? current.details,
+      source: patch.source ?? current.source,
+      status: patch.status ?? current.status,
+      updated_at: nowIso(),
+      obsolete_reason: patch.obsolete_reason ?? current.obsolete_reason,
+      related_commit: patch.related_commit ?? current.related_commit,
+      related_session: patch.related_session ?? current.related_session
+    };
+    this.db.prepare(`UPDATE document_changes SET
+      document_id=@document_id, project=@project, path=@path, change_type=@change_type,
+      summary=@summary, details=@details, source=@source, status=@status, updated_at=@updated_at,
+      obsolete_reason=@obsolete_reason, related_commit=@related_commit, related_session=@related_session
+      WHERE id=@id`).run(updated);
+    return updated;
+  }
+
+  deprecateDocumentChange(id: string, reason?: string): DocumentChangeRecord {
+    return this.updateDocumentChange(id, { status: 'deprecated', obsolete_reason: reason ?? 'Deprecated by user request.' });
+  }
+
+  deleteDocumentChange(id: string, reason?: string): DocumentChangeRecord {
+    return this.updateDocumentChange(id, { status: 'deleted', obsolete_reason: reason ?? 'Deleted by user request.' });
   }
 
   createOrUpdateDocIndex(docPath: string): MemoryRecord {
@@ -472,7 +587,7 @@ export class KnowledgeRepository {
     return { document: doc, memory: updated };
   }
 
-  moveDocument(oldPath: string, newPath: string, options: { overwrite?: boolean } = {}): {
+  moveDocument(oldPath: string, newPath: string, options: { overwrite?: boolean } & DocumentChangeOptions = {}): {
     document: DocumentRecord;
     old_path: string;
     new_path: string;
@@ -519,6 +634,9 @@ export class KnowledgeRepository {
     writeDocumentMarkdown(newAbsolute, updated, parsed.content);
     this.db.prepare('UPDATE documents SET path=@path, checksum=@checksum, updated_at=@updated_at WHERE id=@id').run(updated);
     this.upsertDocumentFts(updated, parsed.content);
+    // 维护记录是文档元数据而不是正文内容；文档移动时同步路径，避免历史记录留在旧路径下查不到。
+    this.db.prepare('UPDATE document_changes SET path = ?, document_id = ?, updated_at = ? WHERE path = ?')
+      .run(newRelative, updated.id, nowIso(), oldRelative);
 
     const memoryRows = this.db.prepare('SELECT id FROM memories WHERE related_doc = ? OR id = ?')
       .all(oldRelative, current.index_memory_id ?? '') as Array<{ id: string }>;
@@ -530,6 +648,7 @@ export class KnowledgeRepository {
       this.updateMemory(memoryRow.id, patch as any);
       updatedMemoryIds.push(memoryRow.id);
     }
+    this.recordDocumentChangeIfRequested(updated, 'move', options, `Moved document from ${oldRelative} to ${newRelative}`);
 
     return {
       document: updated,
@@ -555,6 +674,20 @@ export class KnowledgeRepository {
     if (actualChecksum !== expectedChecksum) {
       throw new Error(`Document changed since last read. Please call read_doc again before modifying: ${normalized}`);
     }
+  }
+
+  private recordDocumentChangeIfRequested(record: DocumentRecord, fallbackType: DocumentChangeType, options: DocumentChangeOptions, fallbackSummary: string): void {
+    if (!options.record_change && !options.change_summary) return;
+    this.recordDocumentChange({
+      project: record.project,
+      path: record.path,
+      change_type: options.change_type ?? fallbackType,
+      summary: options.change_summary ?? fallbackSummary,
+      details: options.change_details,
+      source: options.change_source ?? 'tool',
+      related_commit: options.related_commit,
+      related_session: options.related_session
+    });
   }
 
   private insertDocumentRecord(record: DocumentRecord, content: string): void {

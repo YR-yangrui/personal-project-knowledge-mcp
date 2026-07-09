@@ -91,8 +91,13 @@ const patchedWithExpectedChecksum = repo.patchDocument(
   concurrencyDoc.path,
   '第一版内容。',
   '第二版内容，patch_doc 带 expected_checksum 成功。',
-  concurrencyRead1.record?.checksum ?? ''
+  concurrencyRead1.record?.checksum ?? '',
+  {
+    change_summary: 'patch_doc 带 expected_checksum 更新到第二版',
+    change_details: '验证 patch_doc 可在成功修改正文时写入数据库维护记录。'
+  }
 );
+const patchChangeResults = repo.listDocumentChanges({ path: concurrencyDoc.path, change_type: 'patch', limit: 10 });
 const concurrencyRead2 = repo.readDocument(concurrencyDoc.path);
 let missingOldTextRejected = false;
 try {
@@ -117,8 +122,11 @@ const writeDocWithExpectedChecksum = repo.writeDocument({
   brief: 'write_doc 带 expected_checksum 覆盖成功。',
   tags: ['verify', 'concurrency', 'safe-overwrite'],
   content: '# 文档并发验证\n\n第三版内容，write_doc 带 expected_checksum 成功。\n',
-  expected_checksum: writeDocExpectedRead.record?.checksum ?? ''
+  expected_checksum: writeDocExpectedRead.record?.checksum ?? '',
+  change_summary: 'write_doc 带 expected_checksum 安全覆盖到第三版',
+  change_details: '验证 write_doc 覆盖已有文档时可写入数据库维护记录。'
 });
+const rewriteChangeResults = repo.listDocumentChanges({ path: concurrencyDoc.path, change_type: 'rewrite', limit: 10 });
 const staleWriteRead = repo.readDocument(concurrencyDoc.path);
 fs.appendFileSync(staleWriteRead.absolute_path, '\n外部修改：write_doc 覆盖前的并发变更。\n', 'utf8');
 let staleWriteRejected = false;
@@ -146,12 +154,55 @@ const uncheckedWrite = repo.writeDocument({
 });
 const uncheckedWriteRead = repo.readDocument(concurrencyDoc.path);
 const concurrencySearchResults = repo.searchDocs({ project: 'ProjectN', query: '第四版内容', limit: 10 });
+const manualChange = repo.recordDocumentChange({
+  project: 'ProjectN',
+  path: concurrencyDoc.path,
+  change_type: 'note',
+  summary: '手动记录维护说明',
+  details: '验证独立 record_doc_change 能写入维护记录。',
+  source: 'verify'
+});
+const updatedManualChange = repo.updateDocumentChange(manualChange.id, {
+  summary: '手动记录维护说明（已更新）',
+  details: '验证 update_doc_change 能更新摘要和详情。'
+});
+const deprecatedChange = repo.recordDocumentChange({
+  project: 'ProjectN',
+  path: concurrencyDoc.path,
+  change_type: 'cleanup',
+  summary: '待废弃维护记录',
+  source: 'verify'
+});
+repo.deprecateDocumentChange(deprecatedChange.id, '验证废弃记录默认不再返回。');
+const deletedChange = repo.recordDocumentChange({
+  project: 'ProjectN',
+  path: concurrencyDoc.path,
+  change_type: 'cleanup',
+  summary: '待删除维护记录',
+  source: 'verify'
+});
+repo.deleteDocumentChange(deletedChange.id, '验证软删除记录默认不再返回。');
+const activeDocChanges = repo.listDocumentChanges({ path: concurrencyDoc.path, limit: 20 });
+const deprecatedDocChanges = repo.listDocumentChanges({ path: concurrencyDoc.path, status: 'deprecated', limit: 20 });
+const deletedDocChanges = repo.listDocumentChanges({ path: concurrencyDoc.path, status: 'deleted', limit: 20 });
 const hyphenDocResults = repo.searchDocs({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const hyphenMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'update-doc', limit: 10 });
 const storageInfo = repo.getStorageInfo('ProjectN');
 const resolvedBeforeMove = repo.resolveDocumentPath(hyphenDoc.path);
-const movedDoc = repo.moveDocument(hyphenDoc.path, 'docs/projects/ProjectN/module-notes/update-doc.md');
+repo.recordDocumentChange({
+  project: 'ProjectN',
+  path: hyphenDoc.path,
+  change_type: 'note',
+  summary: '移动前维护记录',
+  source: 'verify'
+});
+const movedDoc = repo.moveDocument(hyphenDoc.path, 'docs/projects/ProjectN/module-notes/update-doc.md', {
+  change_summary: '移动 update-doc 验证文档',
+  change_details: '验证 move_doc 会同步旧维护记录 path，并可写入 move 维护记录。'
+});
 const resolvedAfterMove = repo.resolveDocumentPath(movedDoc.new_path);
+const movedOldPathChanges = repo.listDocumentChanges({ path: hyphenDoc.path, limit: 10 });
+const movedNewPathChanges = repo.listDocumentChanges({ path: movedDoc.new_path, limit: 10 });
 const externalDir = path.join(tempRoot, 'external-docs');
 fs.mkdirSync(externalDir, { recursive: true });
 const externalFile = path.join(externalDir, 'legacy-note.md');
@@ -254,10 +305,20 @@ if (afterRejectedWrite.content.includes('过期 checksum 不应该覆盖')) fail
 if (uncheckedWrite.id !== concurrencyDoc.id) failures.push('writeDocument without expected_checksum did not preserve document id.');
 if (!uncheckedWriteRead.content.includes('第四版内容，不传 expected_checksum 仍允许覆盖。')) failures.push('writeDocument without expected_checksum did not update content.');
 if (concurrencySearchResults.length === 0) failures.push('Document FTS did not reflect unchecked write_doc overwrite.');
+if (!patchChangeResults.some((change) => change.summary.includes('第二版'))) failures.push('patchDocument did not record requested document change.');
+if (!rewriteChangeResults.some((change) => change.summary.includes('第三版'))) failures.push('writeDocument did not record requested document change.');
+if (updatedManualChange.summary !== '手动记录维护说明（已更新）') failures.push('updateDocumentChange did not update summary.');
+if (!activeDocChanges.some((change) => change.id === manualChange.id)) failures.push('listDocumentChanges did not return active manual change.');
+if (activeDocChanges.some((change) => change.id === deprecatedChange.id || change.id === deletedChange.id)) failures.push('listDocumentChanges returned deprecated/deleted records by default.');
+if (!deprecatedDocChanges.some((change) => change.id === deprecatedChange.id)) failures.push('listDocumentChanges did not return deprecated records when requested.');
+if (!deletedDocChanges.some((change) => change.id === deletedChange.id)) failures.push('listDocumentChanges did not return deleted records when requested.');
 if (!storageInfo.project_documents_root?.includes('ProjectN')) failures.push('Storage info did not include project document root.');
 if (!resolvedBeforeMove.absolute_path.endsWith('update-doc.md')) failures.push('resolveDocumentPath did not return absolute doc path.');
 if (!fs.existsSync(resolvedAfterMove.absolute_path)) failures.push('moveDocument did not move the Markdown file.');
 if (movedDoc.updated_memory_ids.length === 0) failures.push('moveDocument did not update related long_index memory.');
+if (movedOldPathChanges.length !== 0) failures.push('moveDocument left document changes on old path.');
+if (!movedNewPathChanges.some((change) => change.change_type === 'move')) failures.push('moveDocument did not record requested move document change.');
+if (!movedNewPathChanges.some((change) => change.summary === '移动前维护记录')) failures.push('moveDocument did not migrate existing document change path.');
 if (!fs.existsSync(externalFile)) failures.push('migrateMarkdownFile copy mode removed the source file.');
 if (!fs.existsSync(migratedFile.absolute_path)) failures.push('migrateMarkdownFile did not create target document.');
 if (bugReport.document.semantic_type !== 'bug_report') failures.push('recordBugReport did not create a bug_report document.');
