@@ -107,7 +107,9 @@ function ftsMatchQuery(query: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map((term) => `"${term.replace(/"/g, '""')}"`)
-    .join(' ');
+    // 用户输入通常是主题词集合，不是要求每个扩展词都出现的布尔条件。
+    // 使用 OR 保证主题文档能被召回，再交给 BM25 优先排列多词命中的结果。
+    .join(' OR ');
 }
 
 export class KnowledgeRepository {

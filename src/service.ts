@@ -1,7 +1,7 @@
 import type { KnowledgeRepository } from './repository.js';
 import { CandidateExtractor } from './candidates.js';
 import type { AppConfig } from './config.js';
-import type { CommitCandidatesInput, CommitCandidatesResult, MemoryCandidate, MemoryRecord } from './types.js';
+import type { CommitCandidatesInput, CommitCandidatesResult, MemoryCandidate } from './types.js';
 import { nowIso } from './ids.js';
 import { slugify } from './paths.js';
 
@@ -14,7 +14,7 @@ export class KnowledgeService {
 
   buildContext(project?: string, query?: string, budgetTokens?: number): Record<string, unknown> {
     const loaded = this.repo.listLoadedMemory(project);
-    const semanticTypeCounts = this.repo.semanticTypeCounts(project);
+    const semanticTypeCounts = query ? [] : this.repo.semanticTypeCounts(project);
     const relatedDocs = query
       ? this.repo.searchDocs({ project, query, status: 'active', limit: 5, mode: 'index' })
       : [];
@@ -22,50 +22,60 @@ export class KnowledgeService {
       ? this.repo.searchMemory({ project, query, status: 'active', load_level: 'long_index', limit: 5 })
       : [];
 
-    const short = this.trimShortMemories(loaded.short, budgetTokens);
-    return {
-      semantic_type_catalog: this.semanticTypeCatalog(semanticTypeCounts),
-      loaded_short_memories: short.map((m) => ({
-        id: m.id,
-        project: m.project,
-        semantic_type: m.semantic_type,
-        title: m.title,
-        content: m.content,
-        confidence: m.confidence,
-        priority: m.priority
-      })),
-      loaded_long_memory_index: loaded.longIndex.map((m) => ({
-        id: m.id,
-        project: m.project,
-        semantic_type: m.semantic_type,
-        title: m.title,
-        brief: m.brief,
-        related_doc: m.related_doc,
-        confidence: m.confidence,
-        priority: m.priority
-      })),
-      related_long_memory_index: relatedLongMemory.map((m) => ({
+    const loadedShort = loaded.short.map((m) => ({
+      id: m.id,
+      project: m.project,
+      semantic_type: m.semantic_type,
+      title: m.title,
+      content: m.content,
+      confidence: m.confidence,
+      priority: m.priority
+    }));
+    const loadedLong = loaded.longIndex.map((m) => ({
+      id: m.id,
+      project: m.project,
+      semantic_type: m.semantic_type,
+      title: m.title,
+      brief: m.brief,
+      related_doc: m.related_doc,
+      confidence: m.confidence,
+      priority: m.priority
+    }));
+    const relatedDocuments = relatedDocs.map((d) => ({
+      id: d.id,
+      project: d.project,
+      semantic_type: d.semantic_type,
+      title: d.title,
+      brief: d.brief,
+      path: d.path
+    }));
+    const relatedDocumentPaths = new Set(relatedDocuments.map((doc) => doc.path));
+    const relatedLong = relatedLongMemory
+      // 文档索引和文档搜索经常指向同一正文，只保留信息更直接的文档入口。
+      .filter((m) => !m.related_doc || !relatedDocumentPaths.has(m.related_doc))
+      .map((m) => ({
         id: m.id,
         project: m.project,
         semantic_type: m.semantic_type,
         title: m.title,
         brief: m.brief,
         related_doc: m.related_doc
-      })),
-      related_document_index: relatedDocs.map((d) => ({
-        id: d.id,
-        project: d.project,
-        semantic_type: d.semantic_type,
-        title: d.title,
-        brief: d.brief,
-        path: d.path
-      })),
+      }));
+    const context = {
+      semantic_type_catalog: query ? [] : this.semanticTypeCatalog(semanticTypeCounts),
+      loaded_short_memories: loadedShort,
+      loaded_long_memory_index: loadedLong,
+      related_long_memory_index: relatedLong,
+      related_document_index: relatedDocuments,
       notes: [
         '短记忆已自动全文载入，可直接使用。',
         '长记忆索引和文档入口只说明存在相关知识，不代表正文已读取；需要正文时调用 read_doc。',
-        'semantic_type_catalog 会列出可搜索分类；show_in_context=false 或 auto_load_index=false 的分类默认不占启动上下文，需要主动搜索。'
+        query
+          ? '定向查询已优先装入相关结果；分类目录可通过 list_semantic_types 按需读取。'
+          : 'semantic_type_catalog 会列出可搜索分类；show_in_context=false 或 auto_load_index=false 的分类默认不占启动上下文，需要主动搜索。'
       ]
     };
+    return budgetTokens ? this.fitContextToBudget(context, budgetTokens) : context;
   }
 
   semanticTypeCatalog(counts = this.repo.semanticTypeCounts()): Array<Record<string, unknown>> {
@@ -91,19 +101,33 @@ export class KnowledgeService {
     });
   }
 
-  private trimShortMemories(records: MemoryRecord[], budgetTokens?: number): MemoryRecord[] {
-    if (!budgetTokens) return records;
-    // 粗略按 1 token≈2 个中文/英文字符预算，首版只防止异常超载，不做精确 tokenizer。
-    let usedChars = 0;
+  private fitContextToBudget(context: Record<string, any>, budgetTokens: number): Record<string, unknown> {
+    // 用保守的 1 token≈2 字符估算整个 JSON，而不是只限制短记忆正文。
+    // 相关结果先进入预算，确保定向查询不会被固定目录和常驻索引挤掉。
     const maxChars = budgetTokens * 2;
-    const result: MemoryRecord[] = [];
-    for (const record of records) {
-      const len = (record.content ?? '').length + record.title.length;
-      if (usedChars + len > maxChars) break;
-      result.push(record);
-      usedChars += len;
+    const fitted: Record<string, any> = {
+      semantic_type_catalog: [],
+      loaded_short_memories: [],
+      loaded_long_memory_index: [],
+      related_long_memory_index: [],
+      related_document_index: [],
+      notes: context.notes
+    };
+    const priorities = [
+      'related_document_index',
+      'related_long_memory_index',
+      'loaded_short_memories',
+      'loaded_long_memory_index',
+      'semantic_type_catalog'
+    ];
+
+    for (const key of priorities) {
+      for (const item of context[key] ?? []) {
+        fitted[key].push(item);
+        if (JSON.stringify(fitted).length > maxChars) fitted[key].pop();
+      }
     }
-    return result;
+    return fitted;
   }
 
   extractMemoryCandidates(conversation: string, project?: string): MemoryCandidate[] {

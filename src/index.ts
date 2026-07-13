@@ -10,17 +10,24 @@ import { renderContextMarkdown } from './context-markdown.js';
 
 const { config, repo, service, stats } = createApp();
 
+const serverInstructions = [
+  'Use build_context for project memory, search_docs/read_doc for Markdown, and search_memory for durable rules.',
+  'Short memories contain full text; long indexes only point to documents.',
+  'Use get_usage_guide or the usage-guide resource for the complete workflow.'
+].join(' ');
+
 const server = new McpServer({
   name: 'personal-project-knowledge-mcp',
   version: '0.1.0'
 }, {
-  instructions: usageGuideMarkdown
+  // Some clients repeat server instructions beside every tool, so keep initialization guidance compact.
+  instructions: serverInstructions
 });
 
 function jsonResult(value: unknown) {
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
-    structuredContent: value as Record<string, unknown>
+    // A single channel avoids duplicating large document bodies in the model context.
+    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }]
   };
 }
 

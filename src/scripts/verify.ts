@@ -42,6 +42,18 @@ repo.createOrUpdateDocIndex(doc.path);
 const context = service.buildContext('ProjectN', '订单系统', 4000);
 const memoryResults = repo.searchMemory({ project: 'ProjectN', query: '订单系统', limit: 10 });
 const docResults = repo.searchDocs({ project: 'ProjectN', query: '订单系统', limit: 10 });
+const topicDoc = repo.writeDocument({
+  project: 'ProjectN',
+  path: 'docs/projects/ProjectN/module-notes/pick-box-system.md',
+  semantic_type: 'module_doc',
+  title: '自选宝箱系统',
+  brief: '订单变化后在点开界面时惰性刷新可选奖励。',
+  tags: ['自选宝箱', '订单'],
+  content: '# 自选宝箱系统\n\n订单发生变化后，点开界面时刷新候选奖励。\n'
+});
+repo.createOrUpdateDocIndex(topicDoc.path);
+const topicResults = repo.searchDocs({ project: 'ProjectN', query: '自选宝箱 订单 重新抽取 策划案 需求 文档', limit: 10 });
+const targetedContext = service.buildContext('ProjectN', '自选宝箱 订单 重新抽取 策划案 需求 文档', 5000);
 const hyphenDoc = repo.writeDocument({
   project: 'ProjectN',
   path: 'docs/projects/ProjectN/skills/update-doc.md',
@@ -288,6 +300,10 @@ if ((context as any).loaded_short_memories.length === 0) failures.push('No short
 if ((context as any).loaded_long_memory_index.length === 0) failures.push('No long memory indexes loaded.');
 if (memoryResults.length === 0) failures.push('Memory search returned no results.');
 if (docResults.length === 0) failures.push('Doc search returned no results.');
+if (!topicResults.some((result) => result.id === topicDoc.id)) failures.push('Multi-term doc search did not recall the relevant topic document.');
+if (!(targetedContext as any).related_document_index.some((result: any) => result.id === topicDoc.id)) failures.push('Targeted context did not prioritize the relevant document.');
+if ((targetedContext as any).semantic_type_catalog.length !== 0) failures.push('Targeted context included the full semantic type catalog.');
+if (JSON.stringify(targetedContext).length > 10000) failures.push('Targeted context exceeded the requested token budget estimate.');
 if (hyphenDocResults.length === 0) failures.push('Hyphen doc search returned no results.');
 if (hyphenMemoryResults.length === 0) failures.push('Hyphen memory search returned no results.');
 if (overwrittenDoc.id !== hyphenDoc.id) failures.push('writeDocument overwrite created a new document id.');
