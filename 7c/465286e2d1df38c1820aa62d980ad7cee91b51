@@ -1,0 +1,35 @@
+src/index.ts
+  s_dd01f2d4cab624::t_6c29015ec9e5e1 13-18,23-24,29-30
+src/repository.ts
+  s_dd01f2d4cab624::t_8dbc6f95d6f232 110-112
+src/scripts/verify.ts
+  s_dd01f2d4cab624::t_1b9c25315ea102 45-56,303-306
+src/service.ts
+  s_dd01f2d4cab624::t_64c911f1824516 4,17,25-56,63-69,73-75,78,104-106,108-128,130
+.codebase-memory/artifact.json
+  s_da5e65e9cfaebf::t_44b28fc6ddfd91 2-4,6-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7c465286e2d1df38c1820aa62d980ad7cee91b51",
+  "prompts": {},
+  "sessions": {
+    "s_da5e65e9cfaebf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5bc5-ed03-7762-a896-06293135f40d",
+        "model": "unknown"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    },
+    "s_dd01f2d4cab624": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2278-a006-77d3-b3cf-cb6cc8a8f58f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "yangrui <yangrui@playorcas.com>"
+    }
+  }
+}
