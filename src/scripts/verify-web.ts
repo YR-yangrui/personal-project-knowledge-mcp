@@ -26,9 +26,28 @@ async function request(pathname: string, options: RequestInit = {}) {
   return json.data;
 }
 
+async function waitForServer(): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  let lastError: unknown;
+
+  // The TypeScript web entrypoint can take longer than a fixed delay to bind,
+  // especially on a cold process. Poll health so the verification is not flaky.
+  while (Date.now() < deadline) {
+    try {
+      await request('/api/health');
+      return;
+    }
+    catch (error) {
+      lastError = error;
+      await wait(100);
+    }
+  }
+
+  throw new Error(`Web server did not become ready within 10 seconds: ${String(lastError)}`);
+}
+
 try {
-  await wait(1200);
-  await request('/api/health');
+  await waitForServer();
   await request('/api/storage?project=ProjectN');
   await request('/api/memories', {
     method: 'POST',

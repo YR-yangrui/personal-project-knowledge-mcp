@@ -101,15 +101,78 @@ function checksum(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-function ftsMatchQuery(query: string): string {
-  return query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
+type SearchRank = {
+  coverage: number;
+  weight: number;
+};
+
+function searchTerms(query: string): string[] {
+  return Array.from(new Set(query.trim().split(/\s+/).filter(Boolean)));
+}
+
+function ftsMatchQuery(terms: string[], operator: 'AND' | 'OR'): string {
+  return terms
     .map((term) => `"${term.replace(/"/g, '""')}"`)
-    // 用户输入通常是主题词集合，不是要求每个扩展词都出现的布尔条件。
-    // 使用 OR 保证主题文档能被召回，再交给 BM25 优先排列多词命中的结果。
-    .join(' OR ');
+    .join(` ${operator} `);
+}
+
+function escapeLikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, '\\$&');
+}
+
+function buildLikeSearch(terms: string[], fields: string[], params: Record<string, unknown>): { predicate: string; coverage: string } {
+  const termPredicates = terms.map((term, index) => {
+    const paramName = `search_term_${index}`;
+    params[paramName] = `%${escapeLikeTerm(term)}%`;
+    return `(${fields.map((field) => `COALESCE(${field}, '') LIKE @${paramName} ESCAPE '\\'`).join(' OR ')})`;
+  });
+  return {
+    predicate: `(${termPredicates.join(' OR ')})`,
+    coverage: termPredicates.map((predicate) => `CASE WHEN ${predicate} THEN 1 ELSE 0 END`).join(' + ')
+  };
+}
+
+function rankSearchRow(row: any, terms: string[]): SearchRank {
+  const fields: Array<[unknown, number]> = [
+    [row.title, 12],
+    [row.tags, 8],
+    [row.brief, 5],
+    [row.content ?? row.search_content, 1]
+  ];
+  const normalizedFields = fields.map(([value, weight]) => [String(value ?? '').toLocaleLowerCase(), weight] as const);
+  let coverage = 0;
+  let weight = 0;
+  for (const term of terms) {
+    const normalizedTerm = term.toLocaleLowerCase();
+    let termWeight = 0;
+    for (const [value, fieldWeight] of normalizedFields) {
+      if (value.includes(normalizedTerm)) termWeight += fieldWeight;
+    }
+    if (termWeight > 0) {
+      coverage += 1;
+      weight += termWeight;
+    }
+  }
+  return { coverage, weight };
+}
+
+function rankSearchRows(rows: any[], terms: string[]): any[] {
+  const uniqueRows = new Map<string, any>();
+  for (const row of rows) {
+    if (!uniqueRows.has(row.id)) uniqueRows.set(row.id, row);
+  }
+  // 先按独立关键词覆盖数排，避免单个高频词的 FTS 得分压过真正的组合主题；
+  // 同覆盖数时再优先标题、标签等结构化字段，最后用更新时间保证稳定结果。
+  return Array.from(uniqueRows.values())
+    .map((row) => ({ row, rank: rankSearchRow(row, terms) }))
+    .sort((left, right) => right.rank.coverage - left.rank.coverage
+      || right.rank.weight - left.rank.weight
+      || String(right.row.updated_at).localeCompare(String(left.row.updated_at)))
+    .map(({ row }) => row);
+}
+
+function searchCandidateLimit(limit: number): number {
+  return Math.min(Math.max(limit * 10, 50), 1000);
 }
 
 export class KnowledgeRepository {
@@ -267,13 +330,20 @@ export class KnowledgeRepository {
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     if (input.query?.trim()) {
-      params.query = ftsMatchQuery(input.query);
-      const sql = `SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.id ${where ? `${where} AND` : 'WHERE'} memories_fts MATCH @query ORDER BY bm25(memories_fts), m.updated_at DESC LIMIT @limit`;
-      const results = this.db.prepare(sql).all(params).map(mapMemory);
-      if (results.length > 0) return results;
-      params.like = `%${input.query.trim()}%`;
-      const likeSql = `SELECT m.* FROM memories m ${where ? `${where} AND` : 'WHERE'} (m.title LIKE @like OR m.brief LIKE @like OR m.content LIKE @like OR m.tags LIKE @like) ORDER BY m.updated_at DESC LIMIT @limit`;
-      return this.db.prepare(likeSql).all(params).map(mapMemory);
+      const terms = searchTerms(input.query);
+      const candidateLimit = searchCandidateLimit(limit);
+      const ftsSql = `SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.id ${where ? `${where} AND` : 'WHERE'} memories_fts MATCH @fts_query ORDER BY bm25(memories_fts, 12.0, 5.0, 1.0, 8.0), m.updated_at DESC LIMIT @candidate_limit`;
+      const strictRows = terms.length > 1
+        ? this.db.prepare(ftsSql).all({ ...params, fts_query: ftsMatchQuery(terms, 'AND'), candidate_limit: candidateLimit })
+        : [];
+      const relaxedRows = this.db.prepare(ftsSql)
+        .all({ ...params, fts_query: ftsMatchQuery(terms, 'OR'), candidate_limit: candidateLimit });
+      const likeParams: Record<string, unknown> = { ...params, candidate_limit: candidateLimit };
+      const likeSearch = buildLikeSearch(terms, ['m.title', 'm.brief', 'm.content', 'm.tags'], likeParams);
+      const likeSql = `SELECT m.* FROM memories m ${where ? `${where} AND` : 'WHERE'} ${likeSearch.predicate} ORDER BY ${likeSearch.coverage} DESC, m.updated_at DESC LIMIT @candidate_limit`;
+      return rankSearchRows([...strictRows, ...relaxedRows, ...this.db.prepare(likeSql).all(likeParams)], terms)
+        .slice(0, limit)
+        .map(mapMemory);
     }
     const sql = `SELECT m.* FROM memories m ${where} ORDER BY m.updated_at DESC LIMIT @limit`;
     return this.db.prepare(sql).all(params).map(mapMemory);
@@ -442,13 +512,21 @@ export class KnowledgeRepository {
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     if (input.query?.trim()) {
-      params.query = ftsMatchQuery(input.query);
-      const sql = `SELECT d.* FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} documents_fts MATCH @query ORDER BY bm25(documents_fts), d.updated_at DESC LIMIT @limit`;
-      const results = this.db.prepare(sql).all(params).map(mapDocument);
-      if (results.length > 0) return this.enrichDocResults(results, input);
-      params.like = `%${input.query.trim()}%`;
-      const likeSql = `SELECT d.* FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} (d.title LIKE @like OR d.brief LIKE @like OR d.tags LIKE @like OR f.content LIKE @like) ORDER BY d.updated_at DESC LIMIT @limit`;
-      return this.enrichDocResults(this.db.prepare(likeSql).all(params).map(mapDocument), input);
+      const terms = searchTerms(input.query);
+      const candidateLimit = searchCandidateLimit(limit);
+      const ftsSql = `SELECT d.*, f.content AS search_content FROM documents_fts f JOIN documents d ON d.id = f.id ${where ? `${where} AND` : 'WHERE'} documents_fts MATCH @fts_query ORDER BY bm25(documents_fts, 12.0, 5.0, 1.0, 8.0), d.updated_at DESC LIMIT @candidate_limit`;
+      const strictRows = terms.length > 1
+        ? this.db.prepare(ftsSql).all({ ...params, fts_query: ftsMatchQuery(terms, 'AND'), candidate_limit: candidateLimit })
+        : [];
+      const relaxedRows = this.db.prepare(ftsSql)
+        .all({ ...params, fts_query: ftsMatchQuery(terms, 'OR'), candidate_limit: candidateLimit });
+      const likeParams: Record<string, unknown> = { ...params, candidate_limit: candidateLimit };
+      const likeSearch = buildLikeSearch(terms, ['d.title', 'd.brief', 'd.tags', 'f.content'], likeParams);
+      const likeSql = `SELECT d.*, f.content AS search_content FROM documents d JOIN documents_fts f ON f.id = d.id ${where ? `${where} AND` : 'WHERE'} ${likeSearch.predicate} ORDER BY ${likeSearch.coverage} DESC, d.updated_at DESC LIMIT @candidate_limit`;
+      const rows = rankSearchRows([...strictRows, ...relaxedRows, ...this.db.prepare(likeSql).all(likeParams)], terms)
+        .slice(0, limit)
+        .map(mapDocument);
+      return this.enrichDocResults(rows, input);
     }
     return this.enrichDocResults(this.db.prepare(`SELECT d.* FROM documents d ${where} ORDER BY d.updated_at DESC LIMIT @limit`).all(params).map(mapDocument), input);
   }

@@ -1,13 +1,31 @@
 ---
 name: personal-project-knowledge
-description: Use this skill when an AI assistant or MCP client needs to remember something, recall preferences, manage project knowledge, search or update personal Markdown documents, record decisions, track requirement changes, import docs, review memory candidates, or use the personal-project-knowledge MCP. Prioritize the MCP for memory/document/decision/requirement-change management before ad-hoc local files.
+description: Use only when the user explicitly wants to remember, forget, or recall prior knowledge; manage knowledge-base Markdown; record decisions or requirement changes; import/review memory artifacts; or explicitly use the personal-project-knowledge MCP. Do not trigger for ordinary project work merely because it may benefit from project context.
 ---
 
 # Personal Project Knowledge
 
-Use the `personal-project-knowledge` MCP as the primary system for personal memory and project documentation. Treat the MCP server instructions as authoritative; this skill adds portable client-side routing guidance for any assistant that supports skills or skill-like instructions.
+Use the `personal-project-knowledge` MCP as the primary system for explicit personal-memory and knowledge-base operations. Treat the MCP server instructions as authoritative; this skill only routes tasks that pass the activation gate below.
 
-## Core Rule
+## Activation Gate
+
+Activate this skill when the user explicitly asks to:
+
+- remember, update, forget, or recall a preference, rule, decision, gotcha, or prior result
+- search, read, create, patch, move, or import knowledge-base Markdown
+- preserve decisions, requirement changes, investigation notes, or session artifacts
+- review memory candidates or directly use this MCP
+
+Do not activate this skill merely because:
+
+- the request concerns a project or is running inside a project directory
+- stored context might be generally useful
+- the task is code reading, implementation, debugging, review, testing, planning, or explanation
+- project memories were already injected at session start
+
+Do not call `build_context` as a generic preflight step. If relevant memories are already present in the conversation, use them directly. Call MCP tools only when the requested knowledge operation needs them.
+
+## Storage Rule
 
 Prefer the MCP over ad-hoc files whenever the task is about:
 
@@ -32,16 +50,17 @@ If the user is unsure, recommend the config skill's "current configuration check
 
 ## Workflow
 
-1. Determine the project from the current working directory or user-provided project name.
-2. For recall, call `build_context` or `search_memory` / `search_docs` before answering from stored knowledge.
-3. For short durable facts, call `write_memory` with `load_level="short"`.
-4. For long content, call `write_doc`, then `create_or_update_doc_index`.
-5. Before modifying an existing document, call `read_doc` and pass its current `checksum` as `expected_checksum` to `patch_doc` or `write_doc`; if the checksum changed, reread and merge.
-6. Do not maintain "Update Log" / "Changelog" sections inside Markdown bodies; use `record_doc_change`, `list_doc_changes`, `update_doc_change`, `deprecate_doc_change`, or `delete_doc_change`.
-7. For stale facts, call `update_memory` or `deprecate_memory`; do not leave contradictory active memories.
-8. For session outputs worth preserving, call `record_session_artifacts`.
-9. Before manual document cleanup or migration, call `get_storage_info`; use `resolve_doc_path` and `move_doc` for controlled moves inside the data root.
-10. If you discover a bug or confusing behavior in this MCP while using it, call `record_bug_report` immediately so it can be fixed later.
+1. Identify the explicit knowledge intent; stop if the activation gate is not met.
+2. For broad recall of stored project knowledge, call `build_context`. For a specific fact or document, prefer targeted `search_memory` or `search_docs`, then read only the matching record.
+3. Before writing a memory, search for an existing equivalent record; update it instead of creating a duplicate.
+4. For short durable facts, call `write_memory` with `load_level="short"`.
+5. For long content, call `write_doc`, then `create_or_update_doc_index`.
+6. Before modifying an existing document, call `read_doc` and pass its current `checksum` as `expected_checksum` to `patch_doc` or `write_doc`; if the checksum changed, reread and merge.
+7. Do not maintain "Update Log" / "Changelog" sections inside Markdown bodies; use document-change tools.
+8. For stale facts, call `update_memory` or `deprecate_memory`; do not leave contradictory active memories.
+9. For session outputs the user wants preserved, call `record_session_artifacts`.
+10. Before manual document cleanup or migration, call `get_storage_info`; use `resolve_doc_path` and `move_doc` for controlled moves inside the data root.
+11. If you discover a bug in this MCP while actively using it, call `record_bug_report`.
 
 ## Memory Boundaries
 

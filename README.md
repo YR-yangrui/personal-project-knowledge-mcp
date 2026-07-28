@@ -167,14 +167,14 @@ startup_timeout_sec = 120
 
 ```toml
 [[hooks.SessionStart]]
-matcher = "startup|resume|clear|compact"
+matcher = "startup"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
 command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "E:/Projects/personal-project-knowledge-mcp/scripts/codex-session-start.ps1" -Mode "inline"'
 ```
 
-这个 hook 会运行 `scripts/codex-session-start.ps1`，在会话启动、恢复、清空或压缩后加载当前项目的短记忆和长记忆索引。Codex command hook 目前主要通过 stdout 把内容交给会话，因此 stdout 既是“注入上下文”的通道，也是终端可能看到的输出通道。
+这个 hook 会运行 `scripts/codex-session-start.ps1`，仅在新会话启动时加载当前项目的短记忆和长记忆索引；恢复、清空或压缩对话不会重复导入。Codex command hook 目前主要通过 stdout 把内容交给会话，因此 stdout 既是“注入上下文”的通道，也是终端可能看到的输出通道。
 
 ### SessionStart 输出模式
 

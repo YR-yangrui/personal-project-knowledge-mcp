@@ -16,6 +16,20 @@ $ReleaseRoot = Join-Path $Root "release"
 $Stage = Join-Path $ReleaseRoot "$PackageName-$Version"
 $ZipPath = Join-Path $ReleaseRoot "$PackageName-$Version.zip"
 
+function Invoke-CheckedNative {
+  param(
+    [string]$Command,
+    [string[]]$Arguments
+  )
+
+  # Windows PowerShell does not turn a native command's non-zero exit code into
+  # a terminating error, so enforce it before continuing the release pipeline.
+  & $Command @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Command failed with exit code $LASTEXITCODE"
+  }
+}
+
 Write-Host "[1/6] Preparing release directory..."
 New-Item -ItemType Directory -Force -Path $ReleaseRoot | Out-Null
 if (Test-Path -LiteralPath $Stage) {
@@ -28,15 +42,15 @@ if (Test-Path -LiteralPath $ZipPath) {
 Write-Host "[2/6] Installing dependencies..."
 Push-Location $Root
 try {
-  npm install
+  Invoke-CheckedNative "npm" @("install")
 
   Write-Host "[3/6] Building TypeScript..."
-  npm run build
+  Invoke-CheckedNative "npm" @("run", "build")
 
   if (-not $SkipVerify) {
     Write-Host "[4/6] Running verification..."
-    npm run verify
-    npm run verify:web
+    Invoke-CheckedNative "npm" @("run", "verify")
+    Invoke-CheckedNative "npm" @("run", "verify:web")
   }
   else {
     Write-Host "[4/6] Verification skipped."

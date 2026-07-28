@@ -54,6 +54,29 @@ const topicDoc = repo.writeDocument({
 repo.createOrUpdateDocIndex(topicDoc.path);
 const topicResults = repo.searchDocs({ project: 'ProjectN', query: '自选宝箱 订单 重新抽取 策划案 需求 文档', limit: 10 });
 const targetedContext = service.buildContext('ProjectN', '自选宝箱 订单 重新抽取 策划案 需求 文档', 5000);
+const broadMatchMemory = repo.writeMemory({
+  project: 'ProjectN',
+  load_level: 'short',
+  semantic_type: 'module_note',
+  title: 'Smile 活动说明',
+  content: '仅包含 Smile 关键词的记录。'
+});
+const focusedMatchMemory = repo.writeMemory({
+  project: 'ProjectN',
+  load_level: 'short',
+  semantic_type: 'module_note',
+  title: 'ActivityManager PopupRequest ListQuest 生命周期',
+  content: '结算期间需要由 ActivityManager 安排 PopupRequest 和 ListQuest。'
+});
+const substringMatchMemory = repo.writeMemory({
+  project: 'ProjectN',
+  load_level: 'short',
+  semantic_type: 'module_note',
+  title: 'PopupRequestRouter 兼容入口',
+  content: '用于确认 FTS 未按完整 token 命中时仍可通过字面子串召回。'
+});
+const multiTermMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'ActivityManager PopupRequest ListQuest Smile', limit: 10 });
+const substringMemoryResults = repo.searchMemory({ project: 'ProjectN', query: 'PopupRequest', limit: 10 });
 const hyphenDoc = repo.writeDocument({
   project: 'ProjectN',
   path: 'docs/projects/ProjectN/skills/update-doc.md',
@@ -302,6 +325,8 @@ if (memoryResults.length === 0) failures.push('Memory search returned no results
 if (docResults.length === 0) failures.push('Doc search returned no results.');
 if (!topicResults.some((result) => result.id === topicDoc.id)) failures.push('Multi-term doc search did not recall the relevant topic document.');
 if (!(targetedContext as any).related_document_index.some((result: any) => result.id === topicDoc.id)) failures.push('Targeted context did not prioritize the relevant document.');
+if (multiTermMemoryResults[0]?.id !== focusedMatchMemory.id) failures.push('Multi-term memory search did not prioritize the highest-coverage result.');
+if (!substringMemoryResults.some((result) => result.id === substringMatchMemory.id)) failures.push('Memory search did not recall substring-only matches.');
 if ((targetedContext as any).semantic_type_catalog.length !== 0) failures.push('Targeted context included the full semantic type catalog.');
 if (JSON.stringify(targetedContext).length > 10000) failures.push('Targeted context exceeded the requested token budget estimate.');
 if (hyphenDocResults.length === 0) failures.push('Hyphen doc search returned no results.');

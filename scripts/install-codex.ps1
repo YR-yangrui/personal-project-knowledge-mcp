@@ -114,7 +114,7 @@ if (-not $SkipSessionStartHook) {
   $hookBlock = @"
 # >>> personal-project-knowledge SessionStart >>>
 [[hooks.SessionStart]]
-matcher = "startup|resume|clear|compact"
+matcher = "startup"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
