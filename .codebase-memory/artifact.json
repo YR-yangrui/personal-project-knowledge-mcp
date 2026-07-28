@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "be0ce94f5f02a718dde8ca3e1b686b3ce693f72d",
-    "indexed_at": "2026-07-13T14:41:27Z",
+    "commit": "284d2330cb407385edff8634a7dc748e02807f71",
+    "indexed_at": "2026-07-28T09:35:36Z",
     "project": "E-Projects-personal-project-knowledge-mcp",
-    "nodes": 759,
-    "edges": 1419,
+    "nodes": 765,
+    "edges": 1423,
     "original_size": 3473408,
-    "compressed_size": 386175,
+    "compressed_size": 389797,
     "compression_level": 3
 }
